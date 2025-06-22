@@ -1,0 +1,13 @@
+[package]
+name = "hackerman"
+version = "0.1.0"
+description = "A collection of little games in a retro hacking theme"
+authors = ["William Raendchen <william.raendchen@gmail.com>"]
+license = "MIT"
+edition = "2024"
+
+[dependencies]
+crossterm = "0.29.0"
+ratatui = "0.29.0"
+color-eyre = "0.6.3"
+pretty_assertions = "1.4.1"
