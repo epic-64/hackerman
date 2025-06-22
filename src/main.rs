@@ -1,5 +1,7 @@
 mod utils;
 
+use std::thread::sleep;
+use std::time::Duration;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
     style::Stylize,
@@ -9,7 +11,7 @@ use ratatui::{
 };
 
 use ratatui::prelude::*;
-use crate::utils::TrimMargin;
+use crate::utils::{ToDuration, TrimMargin};
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
@@ -101,8 +103,12 @@ impl App {
 
         while self.running {
             terminal.draw(|frame| frame.render_widget(&self, frame.area()))?;
-            self.handle_crossterm_events()?;
+
             self.frame_counter += 1;
+
+            if event::poll(16.milliseconds())? {
+                self.handle_crossterm_events()?;
+            }
         }
 
         Ok(())
