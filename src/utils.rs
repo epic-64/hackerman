@@ -1,3 +1,15 @@
+pub trait ToDuration {
+    /// Convert a number to a [`std::time::Duration`].
+    fn milliseconds(&self) -> std::time::Duration;
+}
+
+impl ToDuration for u64 {
+    /// Convert a number to a [`std::time::Duration`].
+    fn milliseconds(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(*self)
+    }
+}
+
 pub trait TrimMargin {
     #![allow(dead_code)]
     fn nice(&self) -> String;
