@@ -52,23 +52,9 @@ impl App {
     /// - <https://docs.rs/ratatui/latest/ratatui/widgets/index.html>
     /// - <https://github.com/ratatui/ratatui/tree/main/ratatui-widgets/examples>
     fn render(&mut self, frame: &mut Frame) {
-        let title = Line::from("Ratatui Simple Template")
-            .bold()
-            .blue()
-            .centered();
-
         let text = "Hello, Ratatui!\n\n\
             Created using https://github.com/ratatui/templates\n\
             Press `Esc`, `Ctrl-C` or `q` to stop running.";
-
-        let game_area = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![
-                Constraint::Min(0),
-                Constraint::Max(120),
-                Constraint::Min(0),
-            ])
-            .split(frame.area())[1];
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -77,15 +63,23 @@ impl App {
                 Constraint::Percentage(50),
             ])
             .margin(self.margin_size)
-            .split(game_area);
+            .split(frame.area());
 
-        frame.render_widget(
-            Paragraph::new(text)
-                .block(Block::bordered().title(title))
-                .centered()
-            ,
-            layout[0],
-        );
+        let title = Line::from("Ratatui Simple Template").bold().blue().centered();
+        let top_area = layout[0];
+        let top_content = Paragraph::new(text)
+            .block(Block::bordered().title(title))
+            .centered();
+
+        frame.render_widget(top_content, top_area);
+
+        let bottom_area = layout[1];
+        let bottom_title = Line::from("Rectangles").bold().green().centered();
+        let bottom_content = Paragraph::new("This area contains rectangles.")
+            .block(Block::bordered().title(bottom_title))
+            .centered();
+
+        frame.render_widget(bottom_content, bottom_area);
 
         let constraints = (0 .. self.rects as usize)
             .map(|_| Constraint::Min(1))
@@ -94,6 +88,7 @@ impl App {
         let inner_layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(constraints)
+            .margin(1)
             .split(layout[1]);
 
         for i in 0..self.rects as usize {
