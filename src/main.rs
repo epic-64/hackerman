@@ -1,16 +1,17 @@
 mod utils;
+mod app;
 
-use color_eyre::owo_colors::OwoColorize;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
-    style::Stylize,
     text::Line,
     widgets::{Block, Paragraph},
     DefaultTerminal,
 };
 
 use ratatui::prelude::*;
-use ratatui::widgets::Wrap;
+use ratatui::widgets::{Borders, List, Wrap};
+use strum::IntoEnumIterator;
+use crate::app::Game;
 use crate::utils::{ToDuration, TrimMargin};
 
 fn main() -> color_eyre::Result<()> {
@@ -32,70 +33,65 @@ pub struct App {
 
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let layout = Layout::default()
+        let top_bottom = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![
-                Constraint::Percentage(50),
-                Constraint::Percentage(50),
+                Constraint::Length(3),
+                Constraint::Min(1),
             ])
-            .margin(self.margin_size)
             .split(area);
 
-        let title = Line::from("Ratatui Simple Template").bold().blue().centered();
-        let top_area = layout[0];
-        let block = Block::bordered()
-            .title(title)
+        let debug_area = top_bottom[0];
+
+        Block::bordered()
+            .title("Debug Info")
             .title_alignment(Alignment::Center)
-            .border_style(Style::default().fg(Color::Blue));
+            .border_style(Style::default().fg(Color::Magenta))
+            .render(debug_area, buf);
 
-        let top_inner = Rect::new(
-            top_area.x + 2,
-            top_area.y + 1,
-            top_area.width - 4,
-            top_area.height - 2,
-        );
+        Block::bordered()
+            .border_style(Style::default().fg(Color::Magenta))
+            .render(area, buf);
 
-        block.render(top_area, buf);
+        let debug_content = Paragraph::new(format!(
+            "Hackerman Suite of Minigames, Frames: {}", self.frame_counter
+        ));
+        let debug_inner = Layout::default()
+            .horizontal_margin(2)
+            .vertical_margin(1)
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(1)])
+            .split(top_bottom[0])[0];
+        debug_content.render(debug_inner, buf);
 
-        let top_content = Paragraph::new(format!("
-                Hello, Ratatui!
+        let main_area = top_bottom[1];
 
-                Created using https://github.com/ratatui/templates
-                Press `Esc`, `Ctrl-C` or `q` to stop running.
-
-                Let us add a very long sentence to test the wrapping, by putting in a large amount of words into a single line, so that it will wrap around and show how the text is displayed in a terminal.
-
-                {} frames rendered.
-            ", self.frame_counter).nice())
-            .left_aligned()
-            .wrap(Wrap::default());
-
-        top_content.render(top_inner, buf);
-
-        let bottom_area = layout[1];
-        let bottom_title = Line::from("Rectangles").bold().green().centered();
-        let bottom_content = Paragraph::new("This area contains rectangles.")
-            .block(Block::bordered().title(bottom_title))
-            .centered();
-
-        bottom_content.render(bottom_area, buf);
-
-        let constraints = (0 .. self.rects as usize)
-            .map(|_| Constraint::Min(1))
-            .collect::<Vec<_>>();
-
-        let bottom_layout = Layout::default()
+        let left_right = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints(constraints)
+            .constraints(vec![Constraint::Length(28), Constraint::Min(24),])
             .margin(1)
-            .split(layout[1]);
+            .split(main_area);
 
-        for i in 0..self.rects as usize {
-            Paragraph::new("This is a rectangle.")
-                .block(Block::bordered().title("Rectangle"))
-                .centered()
-                .render(bottom_layout[i], buf);
-        }
+        let left_area = left_right[0];
+
+        // list of games
+        Block::bordered()
+            .title("Ratatui Simple Template")
+            .title_alignment(Alignment::Center)
+            .border_style(Style::default().fg(Color::Magenta))
+            .render(left_area, buf);
+
+        let games = Game::iter().map(|game| game.to_string()).collect::<Vec<String>>();
+
+        ratatui::prelude::Widget::render(
+            List::new(games) // Game List
+                .block(Block::default().borders(Borders::ALL).title("Games"))
+                .highlight_style(Style::default().fg(Color::Yellow))
+                .highlight_symbol(">> ")
+                .repeat_highlight_symbol(true)
+            , left_area
+            , buf
+        );
     }
 }
 
@@ -155,7 +151,6 @@ impl App {
         }
     }
 
-    /// Set running to false to quit the application.
     fn quit(&mut self) {
         self.running = false;
     }
