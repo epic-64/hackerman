@@ -19,39 +19,52 @@ fn main() -> color_eyre::Result<()> {
 /// The main application which holds the state and logic of the application.
 #[derive(Debug, Default)]
 pub struct App {
-    /// Is the application running?
     running: bool,
     margin_size: u16,
     rects: u16,
 }
 
-impl App {
-    /// Construct a new instance of [`App`].
-    pub fn new() -> Self {
-        Self {
-            running: false,
-            margin_size: 1,
-            rects: 1,
-        }
-    }
+trait TrimMargin {
+    fn trim_margin(&self) -> String;
+}
 
-    /// Run the application's main loop.
-    pub fn run(mut self, mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
-        self.running = true;
-        while self.running {
-            terminal.draw(|frame| self.render(frame))?;
-            self.handle_crossterm_events()?;
-        }
-        Ok(())
-    }
+impl TrimMargin for str {
+    fn trim_margin(&self) -> String {
+        let lines = self.lines().collect::<Vec<_>>();
 
-    /// Renders the user interface.
-    ///
-    /// This is where you add new widgets. See the following resources for more information:
-    ///
-    /// - <https://docs.rs/ratatui/latest/ratatui/widgets/index.html>
-    /// - <https://github.com/ratatui/ratatui/tree/main/ratatui-widgets/examples>
-    fn render(&mut self, frame: &mut Frame) {
+        let get_min_indent = |line: &&str| -> Option<usize> {
+            let trimmed = line.trim_start();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.chars().take_while(|&c| c == ' ').count())
+            }
+        };
+
+        let min_indent = lines.iter().filter_map(get_min_indent).min().unwrap_or(0);
+
+        // remove top and bottom lines
+        let chopped = lines.iter().skip(1).rev().skip(1).rev().collect::<Vec<_>>();
+
+        // remove empty lines at top and bottom
+        let trimmed_lines: Vec<_> = chopped
+            .iter()
+            .map(|line| {
+                let trimmed = line.trim_start();
+                if trimmed.is_empty() {
+                    String::new()
+                } else {
+                    trimmed.chars().skip(min_indent).collect()
+                }
+            })
+            .collect();
+
+        trimmed_lines.join("\n")
+    }
+}
+
+impl Widget for &App {
+    fn render(self, area: Rect, buf: &mut Buffer) {
         let text = "Hello, Ratatui!\n\n\
             Created using https://github.com/ratatui/templates\n\
             Press `Esc`, `Ctrl-C` or `q` to stop running.";
@@ -63,7 +76,7 @@ impl App {
                 Constraint::Percentage(50),
             ])
             .margin(self.margin_size)
-            .split(frame.area());
+            .split(area);
 
         let title = Line::from("Ratatui Simple Template").bold().blue().centered();
         let top_area = layout[0];
@@ -71,7 +84,7 @@ impl App {
             .block(Block::bordered().title(title))
             .centered();
 
-        frame.render_widget(top_content, top_area);
+        top_content.render(top_area, buf);
 
         let bottom_area = layout[1];
         let bottom_title = Line::from("Rectangles").bold().green().centered();
@@ -79,7 +92,7 @@ impl App {
             .block(Block::bordered().title(bottom_title))
             .centered();
 
-        frame.render_widget(bottom_content, bottom_area);
+        bottom_content.render(bottom_area, buf);
 
         let constraints = (0 .. self.rects as usize)
             .map(|_| Constraint::Min(1))
@@ -92,13 +105,38 @@ impl App {
             .split(layout[1]);
 
         for i in 0..self.rects as usize {
-            frame.render_widget(
-                Paragraph::new("This is a rectangle.")
-                    .block(Block::bordered().title("Rectangle"))
-                    .centered(),
-                inner_layout[i],
-            );
+            Paragraph::new("This is a rectangle.")
+                .block(Block::bordered().title("Rectangle"))
+                .centered()
+                .render(inner_layout[i], buf);
         }
+    }
+}
+
+impl App {
+    /// Construct a new instance of [`App`].
+    pub fn new() -> Self {
+        Self {
+            running: true,
+            margin_size: 0,
+            rects: 1,
+        }
+    }
+
+    /// Run the application's main loop.
+    pub fn run(mut self, mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
+        self.running = true;
+
+        while self.running {
+            terminal.draw(|frame| self.draw(frame))?;
+            self.handle_crossterm_events()?;
+        }
+
+        Ok(())
+    }
+
+    fn draw(&self, frame: &mut Frame) {
+        frame.render_widget(self, frame.area());
     }
 
     /// Reads the crossterm events and updates the state of [`App`].
@@ -132,5 +170,121 @@ impl App {
     /// Set running to false to quit the application.
     fn quit(&mut self) {
         self.running = false;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    fn buffer_to_string(buf: &Buffer) -> String {
+        (0..buf.area.height)
+            .map(|y| {
+                (0..buf.area.width)
+                    .map(|x| buf[(x, y)].symbol())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn app_new() {
+        let app = App::new();
+        assert!(app.running);
+        assert_eq!(app.margin_size, 1);
+        assert_eq!(app.rects, 1);
+    }
+
+    #[test]
+    fn app_quit() {
+        let mut app = App::new();
+        app.quit();
+        assert!(!app.running);
+    }
+
+    #[test]
+    fn app_handle_key_event() {
+        let mut app = App::new();
+        
+        let key_event = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty());
+        app.on_key_event(key_event);
+        assert!(!app.running);
+
+        let key_event = KeyEvent::new(KeyCode::Up, KeyModifiers::empty());
+        app.on_key_event(key_event);
+        assert_eq!(app.margin_size, 2);
+
+        let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::empty());
+        app.on_key_event(key_event);
+        assert_eq!(app.margin_size, 1);
+
+        let key_event = KeyEvent::new(KeyCode::Left, KeyModifiers::empty());
+        app.rects = 2;
+        app.on_key_event(key_event);
+        assert_eq!(app.rects, 1);
+
+        let key_event = KeyEvent::new(KeyCode::Right, KeyModifiers::empty());
+        app.on_key_event(key_event);
+        assert_eq!(app.rects, 2);
+    }
+
+    #[test]
+    fn app_draw_initial_state() {
+        let app = App::new();
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, 70, 12));
+        app.render(buf.area, &mut buf);
+
+        let expected: String = "
+            ┌──────────────────────Ratatui Simple Template───────────────────────┐
+            │                           Hello, Ratatui!                          │
+            │                                                                    │
+            │         Created using https://github.com/ratatui/templates         │
+            │            Press `Esc`, `Ctrl-C` or `q` to stop running.           │
+            └────────────────────────────────────────────────────────────────────┘
+            ┌─────────────────────────────Rectangles─────────────────────────────┐
+            │┌Rectangle─────────────────────────────────────────────────────────┐│
+            ││                       This is a rectangle.                       ││
+            ││                                                                  ││
+            │└──────────────────────────────────────────────────────────────────┘│
+            └────────────────────────────────────────────────────────────────────┘
+        ".trim_margin();
+        
+        let readable_buf = buffer_to_string(&buf);
+
+        assert_eq!(expected, readable_buf);
+    }
+
+    #[test]
+    fn app_draw_add_rectangle() {
+        let mut app = App::new();
+        let mut buf = Buffer::empty(Rect::new(0, 0, 70, 12));
+
+        // press Right to add a rectangle
+        app.on_key_event(KeyEvent::new(KeyCode::Right, KeyModifiers::empty()));
+
+        // populate the buffer with the current state of the app
+        app.render(buf.area, &mut buf);
+
+        let expected: String = "
+            ┌──────────────────────Ratatui Simple Template───────────────────────┐
+            │                           Hello, Ratatui!                          │
+            │                                                                    │
+            │         Created using https://github.com/ratatui/templates         │
+            │            Press `Esc`, `Ctrl-C` or `q` to stop running.           │
+            └────────────────────────────────────────────────────────────────────┘
+            ┌─────────────────────────────Rectangles─────────────────────────────┐
+            │┌Rectangle───────────────────────┐┌Rectangle───────────────────────┐│
+            ││      This is a rectangle.      ││      This is a rectangle.      ││
+            ││                                ││                                ││
+            │└────────────────────────────────┘└────────────────────────────────┘│
+            └────────────────────────────────────────────────────────────────────┘
+        ".trim_margin();
+        
+        let readable_buf = buffer_to_string(&buf);
+
+        assert_eq!(expected, readable_buf);
     }
 }
