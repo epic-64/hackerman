@@ -9,6 +9,7 @@ use ratatui::{
 };
 
 use ratatui::prelude::*;
+use crate::utils::TrimMargin;
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
@@ -19,18 +20,25 @@ fn main() -> color_eyre::Result<()> {
 }
 
 /// The main application which holds the state and logic of the application.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct App {
     running: bool,
     margin_size: u16,
     rects: u16,
+    frame_counter: u64,
 }
 
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let text = "Hello, Ratatui!\n\n\
-            Created using https://github.com/ratatui/templates\n\
-            Press `Esc`, `Ctrl-C` or `q` to stop running.";
+        let text = format!("
+
+            Hello, Ratatui!
+
+            Created using https://github.com/ratatui/templates
+            Press `Esc`, `Ctrl-C` or `q` to stop running.
+
+            {} frames rendered.
+        ", self.frame_counter).nice();
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -83,6 +91,7 @@ impl App {
             running: true,
             margin_size: 0,
             rects: 1,
+            frame_counter: 0,
         }
     }
 
@@ -93,6 +102,7 @@ impl App {
         while self.running {
             terminal.draw(|frame| frame.render_widget(&self, frame.area()))?;
             self.handle_crossterm_events()?;
+            self.frame_counter += 1;
         }
 
         Ok(())
