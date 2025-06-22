@@ -1,7 +1,6 @@
 mod utils;
 
-use std::thread::sleep;
-use std::time::Duration;
+use color_eyre::owo_colors::OwoColorize;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
     style::Stylize,
@@ -11,6 +10,7 @@ use ratatui::{
 };
 
 use ratatui::prelude::*;
+use ratatui::widgets::Wrap;
 use crate::utils::{ToDuration, TrimMargin};
 
 fn main() -> color_eyre::Result<()> {
@@ -32,16 +32,6 @@ pub struct App {
 
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let text = format!("
-
-            Hello, Ratatui!
-
-            Created using https://github.com/ratatui/templates
-            Press `Esc`, `Ctrl-C` or `q` to stop running.
-
-            {} frames rendered.
-        ", self.frame_counter).nice();
-
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![
@@ -53,11 +43,34 @@ impl Widget for &App {
 
         let title = Line::from("Ratatui Simple Template").bold().blue().centered();
         let top_area = layout[0];
-        let top_content = Paragraph::new(text)
-            .block(Block::bordered().title(title))
-            .centered();
+        let block = Block::bordered()
+            .title(title)
+            .title_alignment(Alignment::Center)
+            .border_style(Style::default().fg(Color::Blue));
 
-        top_content.render(top_area, buf);
+        let top_inner = Rect::new(
+            top_area.x + 2,
+            top_area.y + 1,
+            top_area.width - 4,
+            top_area.height - 2,
+        );
+
+        block.render(top_area, buf);
+
+        let top_content = Paragraph::new(format!("
+                Hello, Ratatui!
+
+                Created using https://github.com/ratatui/templates
+                Press `Esc`, `Ctrl-C` or `q` to stop running.
+
+                Let us add a very long sentence to test the wrapping, by putting in a large amount of words into a single line, so that it will wrap around and show how the text is displayed in a terminal.
+
+                {} frames rendered.
+            ", self.frame_counter).nice())
+            .left_aligned()
+            .wrap(Wrap::default());
+
+        top_content.render(top_inner, buf);
 
         let bottom_area = layout[1];
         let bottom_title = Line::from("Rectangles").bold().green().centered();
