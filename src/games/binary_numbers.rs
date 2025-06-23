@@ -16,13 +16,14 @@ impl WidgetRef for BinaryNumbersGame {
 
 impl WidgetRef for BinaryNumbersPuzzle {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let [title_area, current_number_area, suggestions_area, progress_bar_area] = Layout::default()
+        let [title_area, current_number_area, suggestions_area, progress_bar_area, result_area] = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(3),
                 Constraint::Length(5),
                 Constraint::Length(3),
-                Constraint::Length(3)
+                Constraint::Length(3),
+                Constraint::Length(5),
             ])
             .margin(1)
             .areas(area);
@@ -47,14 +48,24 @@ impl WidgetRef for BinaryNumbersPuzzle {
 
         for (i, suggestion) in suggestions.iter().enumerate() {
             let background_color = if self.selected_suggestion == Some(*suggestion) {
-                Style::default().bg(Color::Yellow)
+                Style::default().bg(Color::Yellow).fg(Color::Black)
             } else {
                 Style::default()
+            };
+
+            let show_correct_number = self.guess_result.is_some();
+            let is_correct_number = self.is_correct_guess(*suggestion);
+
+            let foreground_color = if show_correct_number && is_correct_number {
+                Color::Green
+            } else {
+                Color::White
             };
 
             Paragraph::new(format!("{}", suggestion))
                 .block(Block::bordered())
                 .style(background_color)
+                .fg(foreground_color)
                 .alignment(Alignment::Center)
                 .render(suggestions_layout[i], buf);
         }
@@ -74,10 +85,23 @@ impl WidgetRef for BinaryNumbersPuzzle {
                 GuessResult::Timeout => "Time's Up!",
             };
 
+            let color = match result {
+                GuessResult::Correct => Color::Green,
+                GuessResult::Incorrect => Color::Red,
+                GuessResult::Timeout => Color::Yellow,
+            };
+
             Paragraph::new(result_text)
-                .block(Block::bordered().title("Guess Result").title_alignment(Alignment::Center))
+                .block(Block::bordered())
                 .alignment(Alignment::Center)
-                .render(area.inner(Margin { horizontal: 0, vertical: 1 }), buf);
+                .style(Style::default().fg(color))
+                .render(result_area, buf);
+
+            // Press Enter to play again or Esc to exit
+            Paragraph::new("Press Enter to play again or Esc to exit.")
+                .alignment(Alignment::Center)
+                .style(Style::default().fg(Color::White))
+                .render(result_area.inner(Margin::new(0, 2)), buf);
         }
     }
 }
@@ -108,6 +132,13 @@ impl BinaryNumbersGame {
 }
 
 impl BinaryNumbersGame {
+    pub fn handle_game_input(&mut self, input: KeyEvent) {
+        match self.puzzle.guess_result {
+            None => self.handle_no_result_yet(input),
+            Some(_) => self.handle_result_available(input),
+        }
+    }
+
     fn handle_no_result_yet(&mut self, input: KeyEvent) {
         match input.code {
             KeyCode::Right => {
@@ -160,13 +191,6 @@ impl BinaryNumbersGame {
             KeyCode::Enter => self.puzzle = BinaryNumbersPuzzle::new(),
             KeyCode::Esc => self.exit_intended = true,
             _ => {}
-        }
-    }
-
-    pub fn handle_game_input(&mut self, input: KeyEvent) {
-        match self.puzzle.guess_result {
-            None => self.handle_no_result_yet(input),
-            Some(_) => self.handle_result_available(input),
         }
     }
 }
@@ -244,5 +268,9 @@ impl BinaryNumbersPuzzle {
         if self.frames_left == 0 {
             self.guess_result = Some(GuessResult::Timeout);
         }
+    }
+
+    fn render_no_result_yet(&self, area: Rect, buf: &mut Buffer) {
+
     }
 }
