@@ -169,14 +169,7 @@ impl App {
             None => Paragraph::new("No game selected."),
         };
 
-        let details_inner = Layout::default()
-            .horizontal_margin(2)
-            .vertical_margin(1)
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1)])
-            .split(area)[0];
-
-        details_content.render(details_inner, buf);
+        details_content.render(area, buf);
     }
 
     pub fn render_game_box(&mut self, area: Rect, buf: &mut Buffer) {
@@ -199,9 +192,14 @@ impl App {
             .title_alignment(Alignment::Center)
             .render(area, buf);
 
+        let inner_area = area.inner(Margin {
+            horizontal: 1,
+            vertical: 1,
+        });
+
         match &self.current_game {
-            Some(game) => game.render_ref(area, buf),
-            None => self.render_game_details(area, buf),
+            Some(game) => game.render_ref(inner_area, buf),
+            None => self.render_game_details(inner_area, buf),
         }
     }
 
