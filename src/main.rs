@@ -42,7 +42,7 @@ impl App {
             .collect::<Vec<_>>();
 
         let games_list = List::new(games.clone())
-            .block(Block::default().borders(Borders::ALL).title("Games"))
+            .block(Block::default().borders(Borders::ALL).title("Game Selection"))
             .highlight_style(Style::default().fg(Color::Yellow).bold())
             .highlight_symbol(">> ")
             .highlight_spacing(HighlightSpacing::WhenSelected)
@@ -84,7 +84,7 @@ impl Widget for &mut App {
             .direction(Direction::Vertical)
             .constraints(vec![
                 Constraint::Length(3),
-                Constraint::Min(1),
+                Constraint::Fill(1),
             ])
             .areas(area);
 
