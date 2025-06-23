@@ -7,7 +7,7 @@ use ratatui::{prelude, text::Line, widgets::{Block, Paragraph}, DefaultTerminal}
 use crate::app::{handle_input, Game, InputMode};
 use crate::utils::{ToDuration, TrimMargin};
 use ratatui::prelude::*;
-use ratatui::widgets::{HighlightSpacing, List, ListState};
+use ratatui::widgets::{Borders, HighlightSpacing, List, ListState};
 use strum::IntoEnumIterator;
 
 fn main() -> color_eyre::Result<()> {
@@ -38,6 +38,7 @@ pub struct App {
     frame_counter: u64,
     input_mode: InputMode,
     games_state: Games,
+    refresh_without_inputs: bool,
 }
 
 impl App {
@@ -51,6 +52,7 @@ impl App {
                 games: Game::iter().collect(),
                 list_state: ListState::default().with_selected(Some(0)),
             },
+            refresh_without_inputs: false,
         }
     }
 
@@ -63,7 +65,13 @@ impl App {
 
             self.frame_counter += 1;
 
-            if event::poll(16.milliseconds())? {
+            if self.refresh_without_inputs {
+                // real time mode: poll for events every 16 milliseconds, do not block otherwise
+                if event::poll(16.milliseconds())? {
+                    self.handle_crossterm_events()?;
+                }
+            } else {
+                // performance mode: block thread until an input event occurs
                 self.handle_crossterm_events()?;
             }
         }
@@ -78,7 +86,7 @@ impl App {
     fn handle_crossterm_events(&mut self) -> color_eyre::Result<()> {
         match event::read()? {
             // it's important to check KeyEventKind::Press to avoid handling key release events
-            Event::Key(key) if key.kind == KeyEventKind::Press => self.on_key_event(key),
+            Event::Key(key) if key.kind == KeyEventKind::Press => self.on_key_press(key),
             Event::Mouse(_) => {}
             Event::Resize(_, _) => {}
             _ => {}
@@ -87,7 +95,7 @@ impl App {
     }
 
     /// Handles the key events and updates the state of [`App`].
-    fn on_key_event(&mut self, key: KeyEvent) -> () {
+    fn on_key_press(&mut self, key: KeyEvent) -> () {
         handle_input(self, key).unwrap_or_else(|e| eprintln!("Error handling input: {}", e));
     }
 
@@ -96,13 +104,21 @@ impl App {
     }
 
     pub fn render_games_list(&mut self, area: Rect, buf: &mut Buffer) {
+        let highlight_color = if self.input_mode == InputMode::GameSelection {
+            Color::Cyan
+        } else {
+            Color::DarkGray
+        };
+
+        let border_style = Style::default().fg(highlight_color);
+
         let games = self.games_state.games.iter()
             .map(|game| Line::from(game.to_string()))
             .collect::<Vec<_>>();
 
         let games_list = List::new(games.clone())
-            .block(Block::bordered().title("Games List").title_alignment(Alignment::Center))
-            .highlight_style(Style::default().fg(Color::Green).bold())
+            .block(Block::default().borders(Borders::ALL).border_style(border_style).title("Games List").title_alignment(Alignment::Center))
+            .highlight_style(Style::default().fg(highlight_color).bold())
             .highlight_symbol("> ")
             .highlight_spacing(HighlightSpacing::WhenSelected)
             .repeat_highlight_symbol(true);
@@ -113,6 +129,12 @@ impl App {
     }
 
     pub fn render_game_details(&self, area: Rect, buf: &mut Buffer) {
+        let border_style = if matches!(self.input_mode, InputMode::Game(_)) {
+            Style::default().fg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+
         let selected_game = self.games_state.list_state.selected()
             .and_then(|index| self.games_state.games.get(index));
 
@@ -121,10 +143,14 @@ impl App {
             None => Paragraph::new("No game selected."),
         };
 
+        let game_title = selected_game
+            .map(|game| game.to_string())
+            .unwrap_or_else(|| "Game Details".to_string());
+
         Block::bordered()
-            .title("Game Details")
+            .border_style(border_style)
+            .title(game_title)
             .title_alignment(Alignment::Center)
-            .border_style(Style::default().fg(Color::Magenta))
             .render(area, buf);
 
         let details_inner = Layout::default()
@@ -145,7 +171,10 @@ impl App {
             .render(area, buf);
 
         let debug_content = Paragraph::new(format!(
-            "Input Mode: {}, Frames: {}", self.input_mode.to_string(), self.frame_counter,
+            "Loop Mode: {}, Input Mode: {}, Frames: {}",
+            if self.refresh_without_inputs { "Real Time" } else { "Performance" },
+            self.input_mode.to_string(),
+            self.frame_counter,
         ));
 
         let debug_inner = Layout::default()

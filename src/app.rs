@@ -9,7 +9,7 @@ pub enum Game {
     DinoJump,
 }
 
-#[derive(Display, Clone)]
+#[derive(Display, Clone, PartialEq)]
 pub enum InputMode {
     GameSelection,
     Game(Game),
@@ -19,6 +19,10 @@ pub fn handle_input(app: &mut App, input: crossterm::event::KeyEvent) -> color_e
     match (input.modifiers, input.code) {
         (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => app.quit(),
         _ => {}
+    }
+
+    if input.code == KeyCode::Char(' ') {
+        app.refresh_without_inputs = !app.refresh_without_inputs;
     }
 
     match app.input_mode.clone() {
