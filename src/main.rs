@@ -41,72 +41,6 @@ pub struct App {
 }
 
 impl App {
-    pub fn render_games_list(&mut self, area: Rect, buf: &mut Buffer) {
-        // Block::bordered().border_style(Style::default().fg(Color::Magenta)).render(area, buf);
-
-        let games = self.games_state.games.iter()
-            .map(|game| Line::from(game.to_string()))
-            .collect::<Vec<_>>();
-
-        let games_list = List::new(games.clone())
-            .block(Block::bordered().title("Games"))
-            .highlight_style(Style::default().fg(Color::Green).bold())
-            .highlight_symbol("> ")
-            .highlight_spacing(HighlightSpacing::WhenSelected)
-            .repeat_highlight_symbol(true);
-
-        prelude::StatefulWidget::render(
-            games_list, area, buf, &mut self.games_state.list_state
-        );
-    }
-
-    pub fn render_top_area(&self, area: Rect, buf: &mut Buffer) {
-        Block::bordered()
-            .title("Debug Info")
-            .title_alignment(Alignment::Center)
-            .border_style(Style::default().fg(Color::Magenta))
-            .render(area, buf);
-
-        let debug_content = Paragraph::new(format!(
-            "Input Mode: {}, Frames: {}", self.input_mode.to_string(), self.frame_counter,
-        ));
-
-        let debug_inner = Layout::default()
-            .horizontal_margin(2)
-            .vertical_margin(1)
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1)])
-            .split(area)[0];
-        debug_content.render(debug_inner, buf);
-    }
-}
-
-impl Widget for &mut App {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let [top_area, main_area, bottom_area] = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![
-                Constraint::Length(3),
-                Constraint::Fill(1),
-                Constraint::Length(3),
-            ])
-            .areas(area);
-
-        self.render_top_area(top_area, buf);
-
-        let [left_area, right_area] = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Length(28), Constraint::Min(24),])
-            .margin(1)
-            .areas(main_area);
-
-        self.render_games_list(left_area, buf);
-
-        self.render_bottom_area(bottom_area, buf);
-    }
-}
-
-impl App {
     /// Construct a new instance of [`App`].
     pub fn new() -> Self {
         Self {
@@ -159,6 +93,123 @@ impl App {
 
     fn quit(&mut self) {
         self.running = false;
+    }
+
+    pub fn render_games_list(&mut self, area: Rect, buf: &mut Buffer) {
+        let games = self.games_state.games.iter()
+            .map(|game| Line::from(game.to_string()))
+            .collect::<Vec<_>>();
+
+        let games_list = List::new(games.clone())
+            .block(Block::bordered().title("Games List").title_alignment(Alignment::Center))
+            .highlight_style(Style::default().fg(Color::Green).bold())
+            .highlight_symbol("> ")
+            .highlight_spacing(HighlightSpacing::WhenSelected)
+            .repeat_highlight_symbol(true);
+
+        prelude::StatefulWidget::render(
+            games_list, area, buf, &mut self.games_state.list_state
+        );
+    }
+
+    pub fn render_game_details(&self, area: Rect, buf: &mut Buffer) {
+        let selected_game = self.games_state.list_state.selected()
+            .and_then(|index| self.games_state.games.get(index));
+
+        let details_content = match selected_game {
+            Some(game) => Paragraph::new(game.to_string()),
+            None => Paragraph::new("No game selected."),
+        };
+
+        Block::bordered()
+            .title("Game Details")
+            .title_alignment(Alignment::Center)
+            .border_style(Style::default().fg(Color::Magenta))
+            .render(area, buf);
+
+        let details_inner = Layout::default()
+            .horizontal_margin(2)
+            .vertical_margin(1)
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(1)])
+            .split(area)[0];
+
+        details_content.render(details_inner, buf);
+    }
+
+    pub fn render_top_area(&self, area: Rect, buf: &mut Buffer) {
+        Block::bordered()
+            .title("Debug Info")
+            .title_alignment(Alignment::Center)
+            .border_style(Style::default().fg(Color::Magenta))
+            .render(area, buf);
+
+        let debug_content = Paragraph::new(format!(
+            "Input Mode: {}, Frames: {}", self.input_mode.to_string(), self.frame_counter,
+        ));
+
+        let debug_inner = Layout::default()
+            .horizontal_margin(2)
+            .vertical_margin(1)
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(1)])
+            .split(area)[0];
+        debug_content.render(debug_inner, buf);
+    }
+
+    pub fn render_bottom_area(&self, area: Rect, buf: &mut Buffer) {
+        Block::bordered()
+            .title("Controls")
+            .title_alignment(Alignment::Center)
+            .border_style(Style::default().fg(Color::Magenta))
+            .render(area, buf);
+
+        let controls_content = Paragraph::new(
+            "Use arrow keys to navigate the games list. ENTER to select game. CTRL+C to exit."
+        );
+
+        let controls_inner = Layout::default()
+            .horizontal_margin(2)
+            .vertical_margin(1)
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(1)])
+            .split(area)[0];
+        controls_content.render(controls_inner, buf);
+    }
+
+    pub fn render_main_area(&mut self, main_area: Rect, buf: &mut Buffer) {
+        // Block::bordered()
+        //     .title("Main Area")
+        //     .title_alignment(Alignment::Center)
+        //     .border_style(Style::default().fg(Color::Magenta))
+        //     .render(main_area, buf);
+
+        let [left_area, right_area] = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Length(28), Constraint::Min(24),])
+            .areas(main_area);
+
+        self.render_games_list(left_area, buf);
+        self.render_game_details(right_area, buf);
+    }
+}
+
+impl Widget for &mut App {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let [top_area, main_area, bottom_area] = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![
+                Constraint::Length(3),
+                Constraint::Fill(1),
+                Constraint::Length(3),
+            ])
+            .areas(area);
+
+        self.render_top_area(top_area, buf);
+
+        self.render_main_area(main_area, buf);
+
+        self.render_bottom_area(bottom_area, buf);
     }
 }
 
