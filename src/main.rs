@@ -112,6 +112,21 @@ impl App {
         self.running = false;
     }
 
+    fn get_fps(&self) -> f64 {
+        let average_frame_time = if self.frame_times.len() > 1 {
+            let duration = self.frame_times.last().unwrap().duration_since(self.frame_times.first().unwrap().clone());
+            duration.as_secs_f64() / (self.frame_times.len() as f64 - 1.0)
+        } else {
+            0.0
+        };
+
+        if average_frame_time > 0.0 {
+            1.0 / average_frame_time
+        } else {
+            0.0
+        }
+    }
+
     pub fn render_games_list(&mut self, area: Rect, buf: &mut Buffer) {
         let highlight_color = if self.input_mode == InputMode::GameSelection {
             Color::Cyan
@@ -179,25 +194,12 @@ impl App {
             .border_style(Style::default().fg(Color::Magenta))
             .render(area, buf);
 
-        let average_frame_time = if self.frame_times.len() > 1 {
-            let duration = self.frame_times.last().unwrap().duration_since(self.frame_times.first().unwrap().clone());
-            duration.as_secs_f64() / (self.frame_times.len() as f64 - 1.0)
-        } else {
-            0.0
-        };
-
-        let fps = if average_frame_time > 0.0 {
-            1.0 / average_frame_time
-        } else {
-            0.0
-        };
-
         let debug_content = Paragraph::new(format!(
             "Loop Mode: {}, Input Mode: {}, Frames: {}, FPS: {:.2}",
             if self.refresh_without_inputs { "Real Time" } else { "Performance" },
             self.input_mode.to_string(),
             self.frame_counter,
-            fps
+            self.get_fps()
         ));
 
         let debug_inner = Layout::default()
@@ -230,12 +232,6 @@ impl App {
     }
 
     pub fn render_main_area(&mut self, main_area: Rect, buf: &mut Buffer) {
-        // Block::bordered()
-        //     .title("Main Area")
-        //     .title_alignment(Alignment::Center)
-        //     .border_style(Style::default().fg(Color::Magenta))
-        //     .render(main_area, buf);
-
         let [left_area, right_area] = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![Constraint::Length(28), Constraint::Min(24),])
