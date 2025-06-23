@@ -1,9 +1,8 @@
 use crossterm::event::{KeyCode, KeyModifiers};
-use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 use crate::App;
 
-#[derive(EnumIter, Display, Clone)]
+#[derive(EnumIter, Display, Clone, PartialEq)]
 pub enum Game {
     Home,
     Counter,
@@ -16,12 +15,7 @@ pub enum InputMode {
     Game(Game),
 }
 
-pub fn handle_input(
-    app: &mut App,
-    input: crossterm::event::KeyEvent,
-) -> color_eyre::Result<()> {
-    let number_of_games = Game::iter().count();
-
+pub fn handle_input(app: &mut App, input: crossterm::event::KeyEvent) -> color_eyre::Result<()> {
     match (input.modifiers, input.code) {
         (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => app.quit(),
         _ => {}
@@ -29,16 +23,16 @@ pub fn handle_input(
 
     match app.input_mode.clone() {
         InputMode::GameSelection => match input.code {
-            KeyCode::Up if app.selected_game_index > 0 => {
-                app.selected_game_index -= 1;
-                app.games.list_state.select_previous();
-            }
-            KeyCode::Down if app.selected_game_index < number_of_games - 1 => {
-                app.selected_game_index += 1;
-                app.games.list_state.select_next();
-            }
+            KeyCode::Up => app.games_state.select_previous(),
+            KeyCode::Down => app.games_state.select_next(),
             KeyCode::Enter => {
-                app.input_mode = InputMode::Game(Game::iter().nth(app.selected_game_index).unwrap());
+                app.input_mode = InputMode::Game(
+                    app.games_state
+                        .games
+                        .get(app.games_state.list_state.selected().unwrap_or(0))
+                        .cloned()
+                        .unwrap_or(Game::Home),
+                );
             }
             _ => {}
         },
