@@ -11,7 +11,7 @@ use crate::utils::{ToDuration, TrimMargin};
 use ratatui::prelude::*;
 use ratatui::widgets::{Borders, HighlightSpacing, List, ListState};
 use strum::IntoEnumIterator;
-use crate::games::binary_numbers::WidgetGame;
+use crate::games::game_widget::WidgetGame;
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
