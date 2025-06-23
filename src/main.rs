@@ -1,15 +1,17 @@
 mod utils;
 mod app;
+mod games;
 
 use std::time::Instant;
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use ratatui::{prelude, text::Line, widgets::{Block, Paragraph}, DefaultTerminal};
 
-use crate::app::{handle_input, Game, InputMode};
+use crate::app::{handle_input, GameName, InputMode};
 use crate::utils::{ToDuration, TrimMargin};
 use ratatui::prelude::*;
 use ratatui::widgets::{Borders, HighlightSpacing, List, ListState};
 use strum::IntoEnumIterator;
+use crate::games::binary_numbers::WidgetGame;
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
@@ -20,7 +22,7 @@ fn main() -> color_eyre::Result<()> {
 }
 
 struct Games {
-    games: Vec<Game>,
+    games: Vec<GameName>,
     list_state: ListState,
 }
 
@@ -37,6 +39,7 @@ impl Games {
 pub struct App {
     running: bool,
     frame_counter: u64,
+    current_game: Option<Box<dyn WidgetGame>>,
     input_mode: InputMode,
     games_state: Games,
     refresh_without_inputs: bool,
@@ -51,11 +54,12 @@ impl App {
             frame_counter: 0,
             input_mode: InputMode::GameSelection,
             games_state: Games {
-                games: Game::iter().collect(),
+                games: GameName::iter().collect(),
                 list_state: ListState::default().with_selected(Some(0)),
             },
             refresh_without_inputs: false,
             frame_times: Vec::new(),
+            current_game: None,
         }
     }
 
@@ -71,6 +75,10 @@ impl App {
             self.frame_times.push(Instant::now());
 
             terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
+
+            if let Some(game) = &mut self.current_game {
+                game.run();
+            }
 
             self.frame_counter += 1;
 
@@ -152,22 +160,28 @@ impl App {
         );
     }
 
-    pub fn render_game_details(&self, area: Rect, buf: &mut Buffer) {
+    pub fn render_game_details(&mut self, area: Rect, buf: &mut Buffer) {
         let border_style = if matches!(self.input_mode, InputMode::Game(_)) {
             Style::default().fg(Color::Cyan)
         } else {
             Style::default().fg(Color::DarkGray)
         };
 
-        let selected_game = self.games_state.list_state.selected()
+        let selected_game_name = self.games_state.list_state.selected()
             .and_then(|index| self.games_state.games.get(index));
 
-        let details_content = match selected_game {
+        let selected_game = &self.current_game;
+
+        if let Some(game) = selected_game {
+            game.render(area, buf);
+        }
+
+        let details_content = match selected_game_name {
             Some(game) => Paragraph::new(game.to_string()),
             None => Paragraph::new("No game selected."),
         };
 
-        let game_title = selected_game
+        let game_title = selected_game_name
             .map(|game| game.to_string())
             .unwrap_or_else(|| "Game Details".to_string());
 
