@@ -1,18 +1,14 @@
 mod utils;
 mod app;
 
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ratatui::{
-    text::Line,
-    widgets::{Block, Paragraph},
-    DefaultTerminal,
-};
+use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
+use ratatui::{prelude, text::Line, widgets::{Block, Paragraph}, DefaultTerminal};
 
-use ratatui::prelude::*;
-use ratatui::widgets::{Borders, HighlightSpacing, List, ListState, Wrap};
-use strum::IntoEnumIterator;
 use crate::app::{handle_input, Game, InputMode};
 use crate::utils::{ToDuration, TrimMargin};
+use ratatui::prelude::*;
+use ratatui::widgets::{HighlightSpacing, List, ListState};
+use strum::IntoEnumIterator;
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
@@ -27,29 +23,40 @@ struct Games {
     list_state: ListState,
 }
 
+impl Games {
+    fn select_previous(&mut self) {
+        self.list_state.select_previous();
+    }
+
+    fn select_next(&mut self) {
+        self.list_state.select_next();
+    }
+}
+
 pub struct App {
     running: bool,
     frame_counter: u64,
-    selected_game_index: usize,
     input_mode: InputMode,
-    games: Games,
+    games_state: Games,
 }
 
 impl App {
     pub fn render_games_list(&mut self, area: Rect, buf: &mut Buffer) {
-        let games = self.games.games.iter()
+        // Block::bordered().border_style(Style::default().fg(Color::Magenta)).render(area, buf);
+
+        let games = self.games_state.games.iter()
             .map(|game| Line::from(game.to_string()))
             .collect::<Vec<_>>();
 
         let games_list = List::new(games.clone())
-            .block(Block::default().borders(Borders::ALL).title("Game Selection"))
-            .highlight_style(Style::default().fg(Color::Yellow).bold())
-            .highlight_symbol(">> ")
+            .block(Block::bordered().title("Games"))
+            .highlight_style(Style::default().fg(Color::Green).bold())
+            .highlight_symbol("> ")
             .highlight_spacing(HighlightSpacing::WhenSelected)
             .repeat_highlight_symbol(true);
 
-        ratatui::prelude::StatefulWidget::render(
-            games_list, area, buf, &mut self.games.list_state
+        prelude::StatefulWidget::render(
+            games_list, area, buf, &mut self.games_state.list_state
         );
     }
 
@@ -80,6 +87,9 @@ impl App {
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        // draw box for the whole game
+        Block::bordered().border_style(Style::default().fg(Color::Magenta)).render(area, buf);
+
         let [debug_area, main_area] = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![
@@ -89,21 +99,12 @@ impl Widget for &mut App {
             .areas(area);
 
         self.render_top_area(debug_area, buf);
-        // draw box for the whole game
-        Block::bordered().border_style(Style::default().fg(Color::Magenta)).render(area, buf);
 
         let [left_area, right_area] = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![Constraint::Length(28), Constraint::Min(24),])
             .margin(1)
             .areas(main_area);
-
-        // list of games
-        Block::bordered()
-            .title("Ratatui Simple Template")
-            .title_alignment(Alignment::Center)
-            .border_style(Style::default().fg(Color::Magenta))
-            .render(left_area, buf);
 
         self.render_games_list(left_area, buf);
     }
@@ -115,11 +116,10 @@ impl App {
         Self {
             running: true,
             frame_counter: 0,
-            selected_game_index: 0,
             input_mode: InputMode::GameSelection,
-            games: Games {
+            games_state: Games {
                 games: Game::iter().collect(),
-                list_state: ListState::default(),
+                list_state: ListState::default().with_selected(Some(0)),
             },
         }
     }
@@ -169,8 +169,6 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pretty_assertions::assert_eq;
-    use crate::utils::TrimMargin;
 
     fn buffer_to_string(buf: &Buffer) -> String {
         (0..buf.area.height)
@@ -181,63 +179,5 @@ mod tests {
             })
             .collect::<Vec<_>>()
             .join("\n")
-    }
-
-    #[test]
-    fn app_draw_initial_state() {
-        let app = App::new();
-
-        let mut buf = Buffer::empty(Rect::new(0, 0, 70, 12));
-        app.render(buf.area, &mut buf);
-
-        let expected: String = "
-            ┌──────────────────────Ratatui Simple Template───────────────────────┐
-            │                           Hello, Ratatui!                          │
-            │                                                                    │
-            │         Created using https://github.com/ratatui/templates         │
-            │            Press `Esc`, `Ctrl-C` or `q` to stop running.           │
-            └────────────────────────────────────────────────────────────────────┘
-            ┌─────────────────────────────Rectangles─────────────────────────────┐
-            │┌Rectangle─────────────────────────────────────────────────────────┐│
-            ││                       This is a rectangle.                       ││
-            ││                                                                  ││
-            │└──────────────────────────────────────────────────────────────────┘│
-            └────────────────────────────────────────────────────────────────────┘
-        ".nice();
-        
-        let readable_buf = buffer_to_string(&buf);
-
-        assert_eq!(expected, readable_buf);
-    }
-
-    #[test]
-    fn app_draw_add_rectangle() {
-        let mut app = App::new();
-        let mut buf = Buffer::empty(Rect::new(0, 0, 70, 12));
-
-        // press Right to add a rectangle
-        app.on_key_event(KeyEvent::new(KeyCode::Right, KeyModifiers::empty()));
-
-        // populate the buffer with the current state of the app
-        app.render(buf.area, &mut buf);
-
-        let expected: String = "
-            ┌──────────────────────Ratatui Simple Template───────────────────────┐
-            │                           Hello, Ratatui!                          │
-            │                                                                    │
-            │         Created using https://github.com/ratatui/templates         │
-            │            Press `Esc`, `Ctrl-C` or `q` to stop running.           │
-            └────────────────────────────────────────────────────────────────────┘
-            ┌─────────────────────────────Rectangles─────────────────────────────┐
-            │┌Rectangle───────────────────────┐┌Rectangle───────────────────────┐│
-            ││      This is a rectangle.      ││      This is a rectangle.      ││
-            ││                                ││                                ││
-            │└────────────────────────────────┘└────────────────────────────────┘│
-            └────────────────────────────────────────────────────────────────────┘
-        ".nice();
-        
-        let readable_buf = buffer_to_string(&buf);
-
-        assert_eq!(expected, readable_buf);
     }
 }
