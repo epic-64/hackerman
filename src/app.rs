@@ -31,9 +31,11 @@ pub fn handle_input(
         InputMode::GameSelection => match input.code {
             KeyCode::Up if app.selected_game_index > 0 => {
                 app.selected_game_index -= 1;
+                app.games.list_state.select_previous();
             }
             KeyCode::Down if app.selected_game_index < number_of_games - 1 => {
                 app.selected_game_index += 1;
+                app.games.list_state.select_next();
             }
             KeyCode::Enter => {
                 app.input_mode = InputMode::Game(Game::iter().nth(app.selected_game_index).unwrap());
@@ -41,11 +43,8 @@ pub fn handle_input(
             _ => {}
         },
         InputMode::Game(game) => {
-            match input.code {
-                KeyCode::Esc => {
-                    app.input_mode = InputMode::GameSelection;
-                }
-                _ => {}
+            if input.code == KeyCode::Esc {
+                app.input_mode = InputMode::GameSelection;
             }
 
             match game {
