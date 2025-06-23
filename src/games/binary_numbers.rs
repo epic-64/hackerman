@@ -19,9 +19,46 @@ impl WidgetRef for BinaryNumbersGame {
 }
 
 impl WidgetRef for BinaryNumbersPuzzle {
-    fn render_ref(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
-        // Copy the render logic here, but use &self instead of self
-        // (You may need to adjust the code to not require &mut self)
+    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
+        let [current_number_area, suggestions_area, progress_bar_area] = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(3), Constraint::Length(3), Constraint::Length(3)])
+            .areas(area);
+
+        let binary_string = self.current_to_binary_string();
+        let suggestions = self.suggestions();
+
+        Paragraph::new(format!("{}", binary_string))
+            .block(Block::bordered().title("Binary Number").title_alignment(Alignment::Center))
+            .alignment(Alignment::Center)
+            .render(current_number_area, buf);
+
+        // create sub layout for suggestions
+        let suggestions_layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Length(6); suggestions.len()])
+            .split(suggestions_area);
+
+        for (i, suggestion) in suggestions.iter().enumerate() {
+            let background_color = if self.selected_suggestion == Some(*suggestion) {
+                Style::default().bg(Color::Yellow)
+            } else {
+                Style::default()
+            };
+
+            Paragraph::new(format!("{:08b}", suggestion))
+                .block(Block::bordered().title(format!("Suggestion {}", i + 1)).title_alignment(Alignment::Center))
+                .style(background_color)
+                .alignment(Alignment::Center)
+                .render(suggestions_layout[i], buf);
+        }
+
+        // render a progress bar
+        let progress_bar = Paragraph::new(format!("Frames left: {}", self.frames_left))
+            .block(Block::bordered().title("Progress").title_alignment(Alignment::Center))
+            .alignment(Alignment::Center)
+            .style(Style::default().fg(Color::Green));
+        progress_bar.render(progress_bar_area, buf);
     }
 }
 
@@ -32,12 +69,6 @@ pub trait WidgetGame: WidgetRef {
 
 pub struct BinaryNumbersGame {
     puzzle: BinaryNumbersPuzzle,
-}
-
-impl Widget for BinaryNumbersGame {
-    fn render(mut self, area: Rect, buf: &mut Buffer) {
-        self.puzzle.render(area, buf);
-    }
 }
 
 impl WidgetGame for BinaryNumbersGame {
