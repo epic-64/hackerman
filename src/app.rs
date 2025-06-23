@@ -37,11 +37,9 @@ pub fn handle_input(app: &mut App, input: crossterm::event::KeyEvent) -> color_e
         app.refresh_without_inputs = !app.refresh_without_inputs;
     }
 
-    match &app.current_game {
+    match &mut app.current_game {
         None => handle_game_selection_input(app, input),
-        Some(game) => {
-            // game.handle_input(input);
-        }
+        Some(game) => game.handle_input(input),
     }
     Ok(())
 }
