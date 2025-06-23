@@ -3,7 +3,7 @@ use strum_macros::{Display, EnumIter};
 use binary_numbers::BinaryNumbersGame;
 use crate::App;
 use crate::games::binary_numbers;
-use crate::games::binary_numbers::WidgetGame;
+use crate::games::game_widget::WidgetGame;
 
 #[derive(EnumIter, Display, Clone, PartialEq)]
 pub enum GameName {

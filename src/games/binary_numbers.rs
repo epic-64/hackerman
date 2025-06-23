@@ -5,13 +5,10 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::prelude::{Alignment, Color, Style, Widget};
 use ratatui::widgets::{Block, Paragraph};
-
-pub trait WidgetRef {
-    fn render_ref(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer);
-}
+use crate::games::game_widget::{WidgetGame, WidgetRef};
 
 impl WidgetRef for BinaryNumbersGame {
-    fn render_ref(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
         // If your puzzle is mutable, you may need to use RefCell or interior mutability.
         // For now, assuming you can render with &self:
         self.puzzle.render_ref(area, buf);
@@ -62,19 +59,12 @@ impl WidgetRef for BinaryNumbersPuzzle {
     }
 }
 
-pub trait WidgetGame: WidgetRef {
-    fn run(&mut self) -> ();
-    fn handle_input(&mut self, input: KeyEvent) -> ();
-}
-
 pub struct BinaryNumbersGame {
     puzzle: BinaryNumbersPuzzle,
 }
 
 impl WidgetGame for BinaryNumbersGame {
-    fn run(&mut self) {
-        self.puzzle.run();
-    }
+    fn run(&mut self) { self.puzzle.run(); }
 
     fn handle_input(&mut self, input: KeyEvent) -> () {
         self.handle_input(input);
@@ -85,26 +75,10 @@ impl BinaryNumbersGame {
     pub fn new() -> Self {
         Self { puzzle: BinaryNumbersPuzzle::new() }
     }
-
-    pub fn run(&mut self) {
-        self.puzzle.run();
-    }
-
-    pub fn current_number(&self) -> u32 {
-        self.puzzle.current_number()
-    }
-
-    pub fn suggestions(&self) -> &[u32] {
-        self.puzzle.suggestions()
-    }
-
-    pub fn current_to_binary_string(&self) -> String {
-        self.puzzle.current_to_binary_string()
-    }
 }
 
 impl BinaryNumbersGame {
-    pub fn handle_input(&mut self, input: crossterm::event::KeyEvent) {
+    pub fn handle_input(&mut self, input: KeyEvent) {
         match input.code {
             KeyCode::Right => {
                 // select the next suggestion
@@ -220,53 +194,5 @@ impl BinaryNumbersPuzzle {
                 self.guess_result = Some(GuessResult::Incorrect);
             }
         }
-    }
-}
-
-impl Widget for &mut BinaryNumbersPuzzle {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        // display the current number in binary
-        // display the suggestions underneath
-        //
-
-        let [current_number_area, suggestions_area, progress_bar_area] = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(3), Constraint::Length(3), Constraint::Length(3)])
-            .areas(area);
-
-        let binary_string = self.current_to_binary_string();
-        let suggestions = self.suggestions();
-
-        Paragraph::new(format!("{}", binary_string))
-            .block(Block::bordered().title("Binary Number").title_alignment(Alignment::Center))
-            .alignment(Alignment::Center)
-            .render(current_number_area, buf);
-
-        // create sub layout for suggestions
-        let suggestions_layout = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Length(6); suggestions.len()])
-            .split(suggestions_area);
-
-        for (i, suggestion) in suggestions.iter().enumerate() {
-            let background_color = if self.selected_suggestion == Some(*suggestion) {
-                Style::default().bg(Color::Yellow)
-            } else {
-                Style::default()
-            };
-
-            Paragraph::new(format!("{:08b}", suggestion))
-                .block(Block::bordered().title(format!("Suggestion {}", i + 1)).title_alignment(Alignment::Center))
-                .style(background_color)
-                .alignment(Alignment::Center)
-                .render(suggestions_layout[i], buf);
-        }
-
-        // render a progress bar
-        let progress_bar = Paragraph::new(format!("Frames left: {}", self.frames_left))
-            .block(Block::bordered().title("Progress").title_alignment(Alignment::Center))
-            .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::Green));
-        progress_bar.render(progress_bar_area, buf);
     }
 }
