@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use rand::prelude::SliceRandom;
 use rand::Rng;
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::prelude::{Alignment, Color, Style, Widget};
 use ratatui::widgets::{Block, Paragraph};
 use crate::games::game_widget::{WidgetGame, WidgetRef};
@@ -19,30 +19,29 @@ impl WidgetRef for BinaryNumbersPuzzle {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(3),
-                Constraint::Length(3),
+                Constraint::Length(5),
                 Constraint::Length(3),
                 Constraint::Length(3)
             ])
+            .margin(1)
             .areas(area);
-        
-        // render the title
+
         Paragraph::new("Binary Numbers Puzzle")
-            .block(Block::bordered().title("Game Title").title_alignment(Alignment::Center))
             .alignment(Alignment::Center)
             .render(title_area, buf);
 
         let binary_string = self.current_to_binary_string();
         let suggestions = self.suggestions();
 
-        Paragraph::new(format!("{}", binary_string))
+        Paragraph::new(format!("\n{}", binary_string))
             .block(Block::bordered().title("Binary Number").title_alignment(Alignment::Center))
             .alignment(Alignment::Center)
-            .render(current_number_area, buf);
+            .render(current_number_area.inner(Margin::new(12, 0)), buf);
 
         // create sub layout for suggestions
         let suggestions_layout = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Length(6); suggestions.len()])
+            .constraints(vec![Constraint::Min(6); suggestions.len()])
             .split(suggestions_area);
 
         for (i, suggestion) in suggestions.iter().enumerate() {
@@ -52,8 +51,8 @@ impl WidgetRef for BinaryNumbersPuzzle {
                 Style::default()
             };
 
-            Paragraph::new(format!("{:08b}", suggestion))
-                .block(Block::bordered().title(format!("Suggestion {}", i + 1)).title_alignment(Alignment::Center))
+            Paragraph::new(format!("{}", suggestion))
+                .block(Block::bordered())
                 .style(background_color)
                 .alignment(Alignment::Center)
                 .render(suggestions_layout[i], buf);
@@ -152,7 +151,6 @@ impl BinaryNumbersPuzzle {
     pub fn new() -> Self {
         let mut rng = rand::rng();
 
-        // get 4 different random numbers between 0 and 255
         let mut suggestions = Vec::new();
         while suggestions.len() < 4 {
             let num = rng.random_range(0..=255);
@@ -161,10 +159,7 @@ impl BinaryNumbersPuzzle {
             }
         }
 
-        // use the first number as the current number
         let current_number = suggestions[0];
-
-        // shuffle the suggestions
         suggestions.shuffle(&mut rng);
 
         let seconds_to_guess = 60;
