@@ -9,9 +9,9 @@ use ratatui::{
 };
 
 use ratatui::prelude::*;
-use ratatui::widgets::{Borders, List, Wrap};
+use ratatui::widgets::{Borders, HighlightSpacing, List, Wrap};
 use strum::IntoEnumIterator;
-use crate::app::Game;
+use crate::app::{handle_input, Game, InputMode};
 use crate::utils::{ToDuration, TrimMargin};
 
 fn main() -> color_eyre::Result<()> {
@@ -22,13 +22,11 @@ fn main() -> color_eyre::Result<()> {
     result
 }
 
-/// The main application which holds the state and logic of the application.
-#[derive(Debug)]
 pub struct App {
     running: bool,
-    margin_size: u16,
-    rects: u16,
     frame_counter: u64,
+    selected_game_index: usize,
+    input_mode: InputMode,
 }
 
 impl Widget for &App {
@@ -54,7 +52,7 @@ impl Widget for &App {
             .render(area, buf);
 
         let debug_content = Paragraph::new(format!(
-            "Hackerman Suite of Minigames, Frames: {}", self.frame_counter
+            "Input Mode: {}, Frames: {}", self.input_mode.to_string(), self.frame_counter,
         ));
         let debug_inner = Layout::default()
             .horizontal_margin(2)
@@ -84,14 +82,29 @@ impl Widget for &App {
         let games = Game::iter().map(|game| game.to_string()).collect::<Vec<String>>();
 
         ratatui::prelude::Widget::render(
-            List::new(games) // Game List
+            List::new(games.clone()) // Game List
                 .block(Block::default().borders(Borders::ALL).title("Games"))
-                .highlight_style(Style::default().fg(Color::Yellow))
+                .highlight_style(Style::default().fg(Color::Yellow).bold())
                 .highlight_symbol(">> ")
+                .highlight_spacing(HighlightSpacing::WhenSelected)
                 .repeat_highlight_symbol(true)
             , left_area
             , buf
         );
+
+        // render the selected item in the list
+        let selected_item = games.get(self.selected_game_index).expect("Selected game index is out of bounds");
+        let selected_game = Paragraph::new(Line::from(selected_item.clone()))
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: true });
+
+        let selected_area = Layout::default()
+            .horizontal_margin(2)
+            .vertical_margin(1)
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(1)])
+            .split(left_area)[0];
+        selected_game.render(selected_area, buf);
     }
 }
 
@@ -100,9 +113,9 @@ impl App {
     pub fn new() -> Self {
         Self {
             running: true,
-            margin_size: 0,
-            rects: 1,
             frame_counter: 0,
+            selected_game_index: 0,
+            input_mode: InputMode::GameSelection,
         }
     }
 
@@ -139,16 +152,8 @@ impl App {
     }
 
     /// Handles the key events and updates the state of [`App`].
-    fn on_key_event(&mut self, key: KeyEvent) {
-        match (key.modifiers, key.code) {
-            (_, KeyCode::Esc | KeyCode::Char('q')) => self.quit(),
-            (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
-            (_, KeyCode::Up) => self.margin_size += 1,
-            (_, KeyCode::Down) if self.margin_size > 0 => self.margin_size -= 1,
-            (_, KeyCode::Left) if self.rects > 1 => self.rects -= 1,
-            (_, KeyCode::Right) if self.rects < 10 => self.rects += 1,
-            _ => {}
-        }
+    fn on_key_event(&mut self, key: KeyEvent) -> () {
+        handle_input(self, key).unwrap_or_else(|e| eprintln!("Error handling input: {}", e));
     }
 
     fn quit(&mut self) {
