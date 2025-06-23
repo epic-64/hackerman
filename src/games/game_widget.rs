@@ -9,4 +9,5 @@ pub trait WidgetRef {
 pub trait WidgetGame: WidgetRef {
     fn run(&mut self) -> ();
     fn handle_input(&mut self, input: KeyEvent) -> ();
+    fn is_exit_intended(&self) -> bool;
 }

@@ -57,7 +57,7 @@ impl App {
                 games: GameName::iter().collect(),
                 list_state: ListState::default().with_selected(Some(0)),
             },
-            refresh_without_inputs: false,
+            refresh_without_inputs: true,
             frame_times: Vec::new(),
             current_game: None,
         }
@@ -78,6 +78,11 @@ impl App {
 
             if let Some(game) = &mut self.current_game {
                 game.run();
+
+                if game.is_exit_intended() {
+                    self.current_game = None;
+                    self.input_mode = InputMode::GameSelection;
+                }
             }
 
             self.frame_counter += 1;
