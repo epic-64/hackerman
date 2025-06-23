@@ -6,7 +6,26 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::prelude::{Alignment, Color, Style, Widget};
 use ratatui::widgets::{Block, Paragraph};
 
-pub trait WidgetGame: Widget {
+pub trait WidgetRef {
+    fn render_ref(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer);
+}
+
+impl WidgetRef for BinaryNumbersGame {
+    fn render_ref(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+        // If your puzzle is mutable, you may need to use RefCell or interior mutability.
+        // For now, assuming you can render with &self:
+        self.puzzle.render_ref(area, buf);
+    }
+}
+
+impl WidgetRef for BinaryNumbersPuzzle {
+    fn render_ref(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+        // Copy the render logic here, but use &self instead of self
+        // (You may need to adjust the code to not require &mut self)
+    }
+}
+
+pub trait WidgetGame: WidgetRef {
     fn run(&mut self) -> ();
     fn handle_input(&mut self, input: KeyEvent) -> ();
 }

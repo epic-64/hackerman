@@ -170,12 +170,6 @@ impl App {
         let selected_game_name = self.games_state.list_state.selected()
             .and_then(|index| self.games_state.games.get(index));
 
-        let selected_game = &self.current_game;
-
-        if let Some(game) = selected_game {
-            game.render(area, buf);
-        }
-
         let details_content = match selected_game_name {
             Some(game) => Paragraph::new(game.to_string()),
             None => Paragraph::new("No game selected."),
@@ -252,7 +246,11 @@ impl App {
             .areas(main_area);
 
         self.render_games_list(left_area, buf);
-        self.render_game_details(right_area, buf);
+
+        match &self.current_game {
+            Some(game) => game.render_ref(right_area, buf),
+            None => self.render_game_details(right_area, buf),
+        }
     }
 }
 
