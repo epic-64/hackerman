@@ -9,18 +9,27 @@ use crate::games::game_widget::{WidgetGame, WidgetRef};
 
 impl WidgetRef for BinaryNumbersGame {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        // If your puzzle is mutable, you may need to use RefCell or interior mutability.
-        // For now, assuming you can render with &self:
         self.puzzle.render_ref(area, buf);
     }
 }
 
 impl WidgetRef for BinaryNumbersPuzzle {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let [current_number_area, suggestions_area, progress_bar_area] = Layout::default()
+        let [title_area, current_number_area, suggestions_area, progress_bar_area] = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(3), Constraint::Length(3), Constraint::Length(3)])
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Length(3),
+                Constraint::Length(3),
+                Constraint::Length(3)
+            ])
             .areas(area);
+        
+        // render the title
+        Paragraph::new("Binary Numbers Puzzle")
+            .block(Block::bordered().title("Game Title").title_alignment(Alignment::Center))
+            .alignment(Alignment::Center)
+            .render(title_area, buf);
 
         let binary_string = self.current_to_binary_string();
         let suggestions = self.suggestions();
