@@ -3,8 +3,9 @@ use rand::prelude::SliceRandom;
 use rand::Rng;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
-use ratatui::prelude::{Alignment, Color, Style, Widget};
-use ratatui::widgets::{Block, Paragraph};
+use ratatui::prelude::{Alignment, Color, Style, Stylize, Widget};
+use ratatui::text::ToSpan;
+use ratatui::widgets::{Block, Gauge, Paragraph};
 use crate::games::game_widget::{WidgetGame, WidgetRef};
 
 impl WidgetRef for BinaryNumbersGame {
@@ -59,34 +60,55 @@ impl WidgetRef for BinaryNumbersPuzzle {
         }
 
         // render a progress bar
-        let progress_bar = Paragraph::new(format!("Frames left: {}", self.frames_left))
-            .block(Block::bordered().title("Progress").title_alignment(Alignment::Center))
-            .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::Green));
-        progress_bar.render(progress_bar_area, buf);
+        Gauge::default()
+            .gauge_style(Style::new().white().on_black().italic())
+            .ratio(self.frames_left as f64 / self.frames_total as f64)
+            .label(format!("Time left: {} seconds", self.frames_left / 60).to_span().style(Style::default().fg(Color::Yellow)))
+            .render(progress_bar_area, buf);
+
+        // render the guess result if available
+        if let Some(result) = &self.guess_result {
+            let result_text = match result {
+                GuessResult::Correct => "Correct Guess!",
+                GuessResult::Incorrect => "Incorrect Guess!",
+                GuessResult::Timeout => "Time's Up!",
+            };
+
+            Paragraph::new(result_text)
+                .block(Block::bordered().title("Guess Result").title_alignment(Alignment::Center))
+                .alignment(Alignment::Center)
+                .render(area.inner(Margin { horizontal: 0, vertical: 1 }), buf);
+        }
     }
 }
 
 pub struct BinaryNumbersGame {
     puzzle: BinaryNumbersPuzzle,
+    exit_intended: bool,
 }
 
 impl WidgetGame for BinaryNumbersGame {
-    fn run(&mut self) { self.puzzle.run(); }
+    fn run(&mut self) {
+        self.puzzle.run();
+    }
 
     fn handle_input(&mut self, input: KeyEvent) -> () {
-        self.handle_input(input);
+        self.handle_game_input(input);
+    }
+
+    fn is_exit_intended(&self) -> bool {
+        self.exit_intended
     }
 }
 
 impl BinaryNumbersGame {
     pub fn new() -> Self {
-        Self { puzzle: BinaryNumbersPuzzle::new() }
+        Self { puzzle: BinaryNumbersPuzzle::new(), exit_intended: false }
     }
 }
 
 impl BinaryNumbersGame {
-    pub fn handle_input(&mut self, input: KeyEvent) {
+    fn handle_no_result_yet(&mut self, input: KeyEvent) {
         match input.code {
             KeyCode::Right => {
                 // select the next suggestion
@@ -131,7 +153,23 @@ impl BinaryNumbersGame {
                 // ignore other inputs
             }
         }
-    }}
+    }
+
+    fn handle_result_available(&mut self, input: KeyEvent) {
+        match input.code {
+            KeyCode::Enter => self.puzzle = BinaryNumbersPuzzle::new(),
+            KeyCode::Esc => self.exit_intended = true,
+            _ => {}
+        }
+    }
+
+    pub fn handle_game_input(&mut self, input: KeyEvent) {
+        match self.puzzle.guess_result {
+            None => self.handle_no_result_yet(input),
+            Some(_) => self.handle_result_available(input),
+        }
+    }
+}
 
 enum GuessResult {
     Correct,
@@ -143,6 +181,7 @@ pub struct BinaryNumbersPuzzle {
     current_number: u32,
     suggestions: Vec<u32>,
     selected_suggestion: Option<u32>,
+    frames_total: u32,
     frames_left: u32,
     guess_result: Option<GuessResult>,
 }
@@ -162,12 +201,20 @@ impl BinaryNumbersPuzzle {
         let current_number = suggestions[0];
         suggestions.shuffle(&mut rng);
 
-        let seconds_to_guess = 60;
-        let frames_left = seconds_to_guess * 60; // assuming 60 frames per second
+        let seconds_to_guess = 5;
+        let frames_total = seconds_to_guess * 60; // assuming 60 frames per second
+        let frames_left = frames_total;
         let selected_suggestion = None;
         let guess_result = None;
 
-        Self { current_number, suggestions, frames_left, selected_suggestion, guess_result }
+        Self {
+            current_number,
+            suggestions,
+            frames_left,
+            frames_total,
+            selected_suggestion,
+            guess_result
+        }
     }
 
     pub fn current_number(&self) -> u32 {
@@ -187,16 +234,15 @@ impl BinaryNumbersPuzzle {
     }
 
     pub fn run(&mut self) {
+        if self.guess_result.is_some() {
+            // If a guess has been made, we don't need to run the game logic anymore.
+            return;
+        }
+
         self.frames_left = self.frames_left.saturating_sub(1);
 
         if self.frames_left == 0 {
             self.guess_result = Some(GuessResult::Timeout);
-        } else if let Some(selected) = self.selected_suggestion {
-            if self.is_correct_guess(selected) {
-                self.guess_result = Some(GuessResult::Correct);
-            } else {
-                self.guess_result = Some(GuessResult::Incorrect);
-            }
         }
     }
 }
