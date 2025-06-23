@@ -9,7 +9,7 @@ use ratatui::{
 };
 
 use ratatui::prelude::*;
-use ratatui::widgets::{Borders, HighlightSpacing, List, Wrap};
+use ratatui::widgets::{Borders, HighlightSpacing, List, ListState, Wrap};
 use strum::IntoEnumIterator;
 use crate::app::{handle_input, Game, InputMode};
 use crate::utils::{ToDuration, TrimMargin};
@@ -22,30 +22,43 @@ fn main() -> color_eyre::Result<()> {
     result
 }
 
+struct Games {
+    games: Vec<Game>,
+    list_state: ListState,
+}
+
 pub struct App {
     running: bool,
     frame_counter: u64,
     selected_game_index: usize,
     input_mode: InputMode,
+    games: Games,
 }
 
-impl Widget for &App {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let top_bottom = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![
-                Constraint::Length(3),
-                Constraint::Min(1),
-            ])
-            .split(area);
+impl App {
+    pub fn render_games_list(&mut self, area: Rect, buf: &mut Buffer) {
+        let games = self.games.games.iter()
+            .map(|game| Line::from(game.to_string()))
+            .collect::<Vec<_>>();
 
-        let debug_area = top_bottom[0];
+        let games_list = List::new(games.clone())
+            .block(Block::default().borders(Borders::ALL).title("Games"))
+            .highlight_style(Style::default().fg(Color::Yellow).bold())
+            .highlight_symbol(">> ")
+            .highlight_spacing(HighlightSpacing::WhenSelected)
+            .repeat_highlight_symbol(true);
 
+        ratatui::prelude::StatefulWidget::render(
+            games_list, area, buf, &mut self.games.list_state
+        );
+    }
+
+    pub fn render_top_area(&self, area: Rect, buf: &mut Buffer) {
         Block::bordered()
             .title("Debug Info")
             .title_alignment(Alignment::Center)
             .border_style(Style::default().fg(Color::Magenta))
-            .render(debug_area, buf);
+            .render(area, buf);
 
         Block::bordered()
             .border_style(Style::default().fg(Color::Magenta))
@@ -54,23 +67,36 @@ impl Widget for &App {
         let debug_content = Paragraph::new(format!(
             "Input Mode: {}, Frames: {}", self.input_mode.to_string(), self.frame_counter,
         ));
+
         let debug_inner = Layout::default()
             .horizontal_margin(2)
             .vertical_margin(1)
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(1)])
-            .split(top_bottom[0])[0];
+            .split(area)[0];
         debug_content.render(debug_inner, buf);
+    }
+}
 
-        let main_area = top_bottom[1];
+impl Widget for &mut App {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let [debug_area, main_area] = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![
+                Constraint::Length(3),
+                Constraint::Min(1),
+            ])
+            .areas(area);
 
-        let left_right = Layout::default()
+        self.render_top_area(debug_area, buf);
+        // draw box for the whole game
+        Block::bordered().border_style(Style::default().fg(Color::Magenta)).render(area, buf);
+
+        let [left_area, right_area] = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![Constraint::Length(28), Constraint::Min(24),])
             .margin(1)
-            .split(main_area);
-
-        let left_area = left_right[0];
+            .areas(main_area);
 
         // list of games
         Block::bordered()
@@ -79,32 +105,7 @@ impl Widget for &App {
             .border_style(Style::default().fg(Color::Magenta))
             .render(left_area, buf);
 
-        let games = Game::iter().map(|game| game.to_string()).collect::<Vec<String>>();
-
-        ratatui::prelude::Widget::render(
-            List::new(games.clone()) // Game List
-                .block(Block::default().borders(Borders::ALL).title("Games"))
-                .highlight_style(Style::default().fg(Color::Yellow).bold())
-                .highlight_symbol(">> ")
-                .highlight_spacing(HighlightSpacing::WhenSelected)
-                .repeat_highlight_symbol(true)
-            , left_area
-            , buf
-        );
-
-        // render the selected item in the list
-        let selected_item = games.get(self.selected_game_index).expect("Selected game index is out of bounds");
-        let selected_game = Paragraph::new(Line::from(selected_item.clone()))
-            .alignment(Alignment::Center)
-            .wrap(Wrap { trim: true });
-
-        let selected_area = Layout::default()
-            .horizontal_margin(2)
-            .vertical_margin(1)
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1)])
-            .split(left_area)[0];
-        selected_game.render(selected_area, buf);
+        self.render_games_list(left_area, buf);
     }
 }
 
@@ -116,6 +117,10 @@ impl App {
             frame_counter: 0,
             selected_game_index: 0,
             input_mode: InputMode::GameSelection,
+            games: Games {
+                games: Game::iter().collect(),
+                list_state: ListState::default(),
+            },
         }
     }
 
@@ -124,7 +129,7 @@ impl App {
         self.running = true;
 
         while self.running {
-            terminal.draw(|frame| frame.render_widget(&self, frame.area()))?;
+            terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
 
             self.frame_counter += 1;
 
@@ -176,50 +181,6 @@ mod tests {
             })
             .collect::<Vec<_>>()
             .join("\n")
-    }
-
-    #[test]
-    fn app_new() {
-        let app = App::new();
-        assert!(app.running);
-        assert_eq!(app.margin_size, 0);
-        assert_eq!(app.rects, 1);
-    }
-
-    #[test]
-    fn app_quit() {
-        let mut app = App::new();
-        app.quit();
-        assert!(!app.running);
-    }
-
-    #[test]
-    fn app_handle_key_event() {
-        let mut app = App::new();
-        assert!(app.running);
-        assert_eq!(app.margin_size, 0);
-        assert_eq!(app.rects, 1);
-        
-        let key_event = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty());
-        app.on_key_event(key_event);
-        assert!(!app.running);
-
-        let key_event = KeyEvent::new(KeyCode::Up, KeyModifiers::empty());
-        app.on_key_event(key_event);
-        assert_eq!(app.margin_size, 1);
-
-        let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::empty());
-        app.on_key_event(key_event);
-        assert_eq!(app.margin_size, 0);
-
-        let key_event = KeyEvent::new(KeyCode::Left, KeyModifiers::empty());
-        app.rects = 2;
-        app.on_key_event(key_event);
-        assert_eq!(app.rects, 1);
-
-        let key_event = KeyEvent::new(KeyCode::Right, KeyModifiers::empty());
-        app.on_key_event(key_event);
-        assert_eq!(app.rects, 2);
     }
 
     #[test]
