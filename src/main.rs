@@ -161,12 +161,6 @@ impl App {
     }
 
     pub fn render_game_details(&mut self, area: Rect, buf: &mut Buffer) {
-        let border_style = if matches!(self.input_mode, InputMode::Game(_)) {
-            Style::default().fg(Color::Cyan)
-        } else {
-            Style::default().fg(Color::DarkGray)
-        };
-
         let selected_game_name = self.games_state.list_state.selected()
             .and_then(|index| self.games_state.games.get(index));
 
@@ -174,6 +168,26 @@ impl App {
             Some(game) => Paragraph::new(game.to_string()),
             None => Paragraph::new("No game selected."),
         };
+
+        let details_inner = Layout::default()
+            .horizontal_margin(2)
+            .vertical_margin(1)
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(1)])
+            .split(area)[0];
+
+        details_content.render(details_inner, buf);
+    }
+
+    pub fn render_game_box(&mut self, area: Rect, buf: &mut Buffer) {
+        let border_style = if matches!(self.current_game, Some(_)) {
+            Style::default().fg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+
+        let selected_game_name = self.games_state.list_state.selected()
+            .and_then(|index| self.games_state.games.get(index));
 
         let game_title = selected_game_name
             .map(|game| game.to_string())
@@ -185,14 +199,10 @@ impl App {
             .title_alignment(Alignment::Center)
             .render(area, buf);
 
-        let details_inner = Layout::default()
-            .horizontal_margin(2)
-            .vertical_margin(1)
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1)])
-            .split(area)[0];
-
-        details_content.render(details_inner, buf);
+        match &self.current_game {
+            Some(game) => game.render_ref(area, buf),
+            None => self.render_game_details(area, buf),
+        }
     }
 
     pub fn render_top_area(&self, area: Rect, buf: &mut Buffer) {
@@ -246,11 +256,7 @@ impl App {
             .areas(main_area);
 
         self.render_games_list(left_area, buf);
-
-        match &self.current_game {
-            Some(game) => game.render_ref(right_area, buf),
-            None => self.render_game_details(right_area, buf),
-        }
+        self.render_game_box(right_area, buf);
     }
 }
 
