@@ -67,10 +67,6 @@ impl App {
             .border_style(Style::default().fg(Color::Magenta))
             .render(area, buf);
 
-        Block::bordered()
-            .border_style(Style::default().fg(Color::Magenta))
-            .render(area, buf);
-
         let debug_content = Paragraph::new(format!(
             "Input Mode: {}, Frames: {}", self.input_mode.to_string(), self.frame_counter,
         ));
@@ -87,18 +83,16 @@ impl App {
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        // draw box for the whole game
-        Block::bordered().border_style(Style::default().fg(Color::Magenta)).render(area, buf);
-
-        let [debug_area, main_area] = Layout::default()
+        let [top_area, main_area, bottom_area] = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![
                 Constraint::Length(3),
                 Constraint::Fill(1),
+                Constraint::Length(3),
             ])
             .areas(area);
 
-        self.render_top_area(debug_area, buf);
+        self.render_top_area(top_area, buf);
 
         let [left_area, right_area] = Layout::default()
             .direction(Direction::Horizontal)
@@ -107,6 +101,8 @@ impl Widget for &mut App {
             .areas(main_area);
 
         self.render_games_list(left_area, buf);
+
+        self.render_bottom_area(bottom_area, buf);
     }
 }
 
