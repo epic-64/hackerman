@@ -1,6 +1,7 @@
 mod utils;
 mod app;
 
+use std::time::Instant;
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use ratatui::{prelude, text::Line, widgets::{Block, Paragraph}, DefaultTerminal};
 
@@ -39,6 +40,7 @@ pub struct App {
     input_mode: InputMode,
     games_state: Games,
     refresh_without_inputs: bool,
+    frame_times: Vec<Instant>,
 }
 
 impl App {
@@ -53,6 +55,7 @@ impl App {
                 list_state: ListState::default().with_selected(Some(0)),
             },
             refresh_without_inputs: false,
+            frame_times: Vec::new(),
         }
     }
 
@@ -61,6 +64,12 @@ impl App {
         self.running = true;
 
         while self.running {
+            if self.frame_times.len() > 10 {
+                self.frame_times.remove(0);
+            }
+
+            self.frame_times.push(Instant::now());
+
             terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
 
             self.frame_counter += 1;
@@ -170,11 +179,25 @@ impl App {
             .border_style(Style::default().fg(Color::Magenta))
             .render(area, buf);
 
+        let average_frame_time = if self.frame_times.len() > 1 {
+            let duration = self.frame_times.last().unwrap().duration_since(self.frame_times.first().unwrap().clone());
+            duration.as_secs_f64() / (self.frame_times.len() as f64 - 1.0)
+        } else {
+            0.0
+        };
+
+        let fps = if average_frame_time > 0.0 {
+            1.0 / average_frame_time
+        } else {
+            0.0
+        };
+
         let debug_content = Paragraph::new(format!(
-            "Loop Mode: {}, Input Mode: {}, Frames: {}",
+            "Loop Mode: {}, Input Mode: {}, Frames: {}, FPS: {:.2}",
             if self.refresh_without_inputs { "Real Time" } else { "Performance" },
             self.input_mode.to_string(),
             self.frame_counter,
+            fps
         ));
 
         let debug_inner = Layout::default()
@@ -235,9 +258,7 @@ impl Widget for &mut App {
             .areas(area);
 
         self.render_top_area(top_area, buf);
-
         self.render_main_area(main_area, buf);
-
         self.render_bottom_area(bottom_area, buf);
     }
 }
