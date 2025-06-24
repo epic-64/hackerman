@@ -1,4 +1,4 @@
-use crate::games::game_widget::{WidgetGame, WidgetRef};
+use crate::games::game_widget::{MainScreenWidget, WidgetRef};
 use crossterm::event::{KeyCode, KeyEvent};
 use rand::prelude::SliceRandom;
 use rand::Rng;
@@ -111,7 +111,7 @@ pub struct BinaryNumbersGame {
     exit_intended: bool,
 }
 
-impl WidgetGame for BinaryNumbersGame {
+impl MainScreenWidget for BinaryNumbersGame {
     fn run(&mut self) {
         self.puzzle.run();
     }

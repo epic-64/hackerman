@@ -14,3 +14,4 @@ pretty_assertions = "1.4.1"
 strum = "0.26.3"
 strum_macros = "0.26.4"
 rand = "0.9.1"
+natural-tts = { version = "0.2.1", features = ["tts-rs"] }

@@ -1,3 +1,21 @@
+use natural_tts::models::tts_rs::TtsModel;
+use natural_tts::{Model, NaturalTtsBuilder};
+
+pub fn speak(text: String) -> () {
+    let mut natural = NaturalTtsBuilder::default()
+        .default_model(Model::TTS)
+        .tts_model(TtsModel::default())
+        .build()
+        .expect("Could not build Natural TTS");
+
+    let result = natural.say_auto(text.to_string());
+
+    match result {
+        Ok(_) => (),
+        Err(e) => panic!("Failed to speak: {}", e),
+    }
+}
+
 pub trait ToDuration {
     /// Convert a number to a [`std::time::Duration`].
     fn milliseconds(&self) -> std::time::Duration;
