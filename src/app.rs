@@ -1,9 +1,9 @@
-use crossterm::event::{KeyCode, KeyModifiers};
-use strum_macros::{Display, EnumIter};
-use binary_numbers::BinaryNumbersGame;
-use crate::App;
 use crate::games::binary_numbers;
 use crate::games::game_widget::WidgetGame;
+use crate::App;
+use binary_numbers::BinaryNumbersGame;
+use crossterm::event::{KeyCode, KeyModifiers};
+use strum_macros::{Display, EnumIter};
 
 #[derive(EnumIter, Display, Clone, PartialEq)]
 pub enum GameName {

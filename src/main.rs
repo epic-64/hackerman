@@ -2,16 +2,16 @@ mod utils;
 mod app;
 mod games;
 
-use std::time::Instant;
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use ratatui::{prelude, text::Line, widgets::{Block, Paragraph}, DefaultTerminal};
+use std::time::Instant;
 
 use crate::app::{handle_input, GameName, InputMode};
+use crate::games::game_widget::WidgetGame;
 use crate::utils::{ToDuration, TrimMargin};
 use ratatui::prelude::*;
 use ratatui::widgets::{Borders, HighlightSpacing, List, ListState};
 use strum::IntoEnumIterator;
-use crate::games::game_widget::WidgetGame;
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
