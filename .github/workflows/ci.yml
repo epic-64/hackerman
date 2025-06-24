@@ -31,7 +31,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt update
-          sudo apt install -y libspeechd-dev clang libclang-dev
+          sudo apt install -y libspeechd-dev clang libclang-dev alsa-base
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: cargo generate-lockfile
