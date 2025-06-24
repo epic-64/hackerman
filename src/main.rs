@@ -2,14 +2,14 @@ mod utils;
 mod app;
 mod games;
 
-use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
-use ratatui::{prelude, text::Line, widgets::{Block, Paragraph}, DefaultTerminal};
-use std::time::Instant;
-use crate::app::{handle_input, MainMenuEntry, InputMode};
+use crate::app::{handle_input, MainMenuEntry};
 use crate::games::main_screen_widget::MainScreenWidget;
 use crate::utils::{speak, ToDuration, TrimMargin};
+use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use ratatui::prelude::*;
 use ratatui::widgets::{Borders, HighlightSpacing, List, ListState};
+use ratatui::{prelude, text::Line, widgets::{Block, Paragraph}, DefaultTerminal};
+use std::time::Instant;
 use strum::IntoEnumIterator;
 
 fn main() -> color_eyre::Result<()> {

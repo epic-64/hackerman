@@ -133,6 +133,10 @@ impl BinaryNumbersGame {
 
 impl BinaryNumbersGame {
     pub fn handle_game_input(&mut self, input: KeyEvent) {
+        if input.code == KeyCode::Esc {
+            self.exit_intended = true
+        };
+        
         match self.puzzle.guess_result {
             None => self.handle_no_result_yet(input),
             Some(_) => self.handle_result_available(input),
