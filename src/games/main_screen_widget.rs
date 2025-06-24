@@ -17,6 +17,6 @@ pub trait MainScreenWidget: WidgetRef {
     }
 
     fn get_overview(&self) -> String {
-        format!("You are in the game: {}. The overview is not implemented.", self.get_name())
+        format!("You are here: {}. The overview is not implemented.", self.get_name())
     }
 }

@@ -1,5 +1,5 @@
-use natural_tts::models::tts_rs::TtsModel;
 use natural_tts::{Model, NaturalTtsBuilder};
+use natural_tts::models::tts_rs::TtsModel;
 
 pub fn speak(text: String) -> () {
     let mut natural = NaturalTtsBuilder::default()
@@ -8,12 +8,7 @@ pub fn speak(text: String) -> () {
         .build()
         .expect("Could not build Natural TTS");
 
-    let result = natural.say_auto(text.to_string());
-
-    match result {
-        Ok(_) => (),
-        Err(e) => panic!("Failed to speak: {}", e),
-    }
+    let _ = natural.say_auto(text); // not much we can do with the result.
 }
 
 pub trait ToDuration {

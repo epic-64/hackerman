@@ -1,4 +1,4 @@
-use crate::games::game_widget::{MainScreenWidget, WidgetRef};
+use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
 use crossterm::event::{KeyCode, KeyEvent};
 use rand::prelude::SliceRandom;
 use rand::Rng;

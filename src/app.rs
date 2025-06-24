@@ -1,5 +1,5 @@
 use crate::games::binary_numbers;
-use crate::games::game_widget::MainScreenWidget;
+use crate::games::main_screen_widget::MainScreenWidget;
 use crate::{App, MainMenu};
 use binary_numbers::BinaryNumbersGame;
 use crossterm::event::{KeyCode, KeyModifiers};
