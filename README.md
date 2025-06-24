@@ -7,7 +7,7 @@ Currently, the project uses natural-tts, which may require some system dependenc
 On Ubuntu, you can install them with:
 ```bash
 sudo apt update
-sudo apt install -y libspeechd-dev clang libclang-dev alsa-base
+sudo apt install -y libspeechd-dev clang libclang-dev alsa
 ```
 
 ## Run the project
