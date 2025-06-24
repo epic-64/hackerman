@@ -1,3 +1,4 @@
+use crate::games::game_widget::{WidgetGame, WidgetRef};
 use crossterm::event::{KeyCode, KeyEvent};
 use rand::prelude::SliceRandom;
 use rand::Rng;
@@ -6,7 +7,6 @@ use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::prelude::{Alignment, Color, Style, Stylize, Widget};
 use ratatui::text::ToSpan;
 use ratatui::widgets::{Block, Gauge, Paragraph};
-use crate::games::game_widget::{WidgetGame, WidgetRef};
 
 impl WidgetRef for BinaryNumbersGame {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
@@ -241,10 +241,6 @@ impl BinaryNumbersPuzzle {
         }
     }
 
-    pub fn current_number(&self) -> u32 {
-        self.current_number
-    }
-
     pub fn suggestions(&self) -> &[u32] {
         &self.suggestions
     }
@@ -268,9 +264,5 @@ impl BinaryNumbersPuzzle {
         if self.frames_left == 0 {
             self.guess_result = Some(GuessResult::Timeout);
         }
-    }
-
-    fn render_no_result_yet(&self, area: Rect, buf: &mut Buffer) {
-
     }
 }
