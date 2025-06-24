@@ -7,7 +7,7 @@ use strum_macros::{Display, EnumIter};
 
 #[derive(EnumIter, Display, Clone, PartialEq)]
 pub enum MainMenuEntry {
-    Home,
+    AsciiArt,
     BinaryNumbers,
     DinoJump,
 }
@@ -15,6 +15,7 @@ pub enum MainMenuEntry {
 impl MainMenuEntry {
     pub fn get_main_screen_widget(&self) -> Option<Box<dyn MainScreenWidget>> {
         match self {
+            MainMenuEntry::AsciiArt => Some(Box::new(crate::games::ascii_art::AsciiArtMain::new())),
             MainMenuEntry::BinaryNumbers => Some(Box::new(BinaryNumbersGame::new())),
             _ => None,
         }
