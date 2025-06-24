@@ -4,7 +4,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Widget};
 use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
-use crate::utils::{parse_ascii_art, AsciiArtWidget, TrimMargin};
+use crate::utils::{AsciiArtWidget, TrimMargin};
 
 pub(crate) struct AsciiArtMain {
     exit_intended: bool,
@@ -41,7 +41,7 @@ impl WidgetRef for AsciiArtMain {
               `&%\ ` /%&'    |.|        \ '|8'
                   |W|        | |         | |
                   |.|        | |         | |
-            ___ \/ ._\//_/__/  ,\_\//__\/.  \_//__
+            ___ B/ ._\BG_B__/  G\_BGG__B/.  \_BG__
         ".nice();
 
         let color_map = HashMap::from([
@@ -55,7 +55,7 @@ impl WidgetRef for AsciiArtMain {
             ('W', Color::White),
             ('Y', Color::Yellow),
         ]);
-        
+
         // center the art in the area
         let art_width = art.lines().map(|line| line.len()).max().unwrap_or(0) as u16;
         let art_height = art.lines().count() as u16;
