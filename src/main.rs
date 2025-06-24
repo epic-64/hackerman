@@ -5,10 +5,9 @@ mod games;
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use ratatui::{prelude, text::Line, widgets::{Block, Paragraph}, DefaultTerminal};
 use std::time::Instant;
-
-use crate::app::{handle_input, GameName, InputMode};
-use crate::games::game_widget::WidgetGame;
-use crate::utils::{ToDuration, TrimMargin};
+use crate::app::{handle_input, MainMenuEntry, InputMode};
+use crate::games::game_widget::MainScreenWidget;
+use crate::utils::{speak, ToDuration, TrimMargin};
 use ratatui::prelude::*;
 use ratatui::widgets::{Borders, HighlightSpacing, List, ListState};
 use strum::IntoEnumIterator;
@@ -21,27 +20,30 @@ fn main() -> color_eyre::Result<()> {
     result
 }
 
-struct Games {
-    games: Vec<GameName>,
-    list_state: ListState,
+struct MainMenu {
+    items: Vec<MainMenuEntry>,
+    state: ListState,
 }
 
-impl Games {
+impl MainMenu {
     fn select_previous(&mut self) {
-        self.list_state.select_previous();
+        self.state.select_previous();
     }
 
     fn select_next(&mut self) {
-        self.list_state.select_next();
+        self.state.select_next();
+    }
+
+    fn get_selected_entry(&self) -> Option<&MainMenuEntry> {
+        self.state.selected().and_then(|i| self.items.get(i))
     }
 }
 
 pub struct App {
     running: bool,
     frame_counter: u64,
-    current_game: Option<Box<dyn WidgetGame>>,
-    input_mode: InputMode,
-    games_state: Games,
+    current_main_widget: Option<Box<dyn MainScreenWidget>>,
+    main_menu: MainMenu,
     refresh_without_inputs: bool,
     frame_times: Vec<Instant>,
 }
@@ -52,20 +54,22 @@ impl App {
         Self {
             running: true,
             frame_counter: 0,
-            input_mode: InputMode::GameSelection,
-            games_state: Games {
-                games: GameName::iter().collect(),
-                list_state: ListState::default().with_selected(Some(0)),
+            main_menu: MainMenu {
+                items: MainMenuEntry::iter().collect(),
+                state: ListState::default().with_selected(Some(0)),
             },
             refresh_without_inputs: true,
             frame_times: Vec::new(),
-            current_game: None,
+            current_main_widget: None,
         }
     }
 
     /// Run the application's main loop.
     pub fn run(mut self, mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
         self.running = true;
+
+        speak("Press F1 to get a general overview of the application.".into());
+        speak("Press F2 to get an overview of where you are.".into());
 
         while self.running {
             if self.frame_times.len() > 10 {
@@ -76,12 +80,11 @@ impl App {
 
             terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
 
-            if let Some(game) = &mut self.current_game {
+            if let Some(game) = &mut self.current_main_widget {
                 game.run();
 
                 if game.is_exit_intended() {
-                    self.current_game = None;
-                    self.input_mode = InputMode::GameSelection;
+                    self.current_main_widget = None;
                 }
             }
 
@@ -141,7 +144,7 @@ impl App {
     }
 
     pub fn render_games_list(&mut self, area: Rect, buf: &mut Buffer) {
-        let highlight_color = if self.input_mode == InputMode::GameSelection {
+        let highlight_color = if self.current_main_widget.is_none() {
             Color::Cyan
         } else {
             Color::DarkGray
@@ -149,25 +152,26 @@ impl App {
 
         let border_style = Style::default().fg(highlight_color);
 
-        let games = self.games_state.games.iter()
+        let games = self.main_menu.items.iter()
             .map(|game| Line::from(game.to_string()))
             .collect::<Vec<_>>();
 
         let games_list = List::new(games.clone())
-            .block(Block::default().borders(Borders::ALL).border_style(border_style).title("Games List").title_alignment(Alignment::Center))
+            .block(Block::default().borders(Borders::ALL).border_style(border_style)
+                .title("Main Menu").title_alignment(Alignment::Center))
             .highlight_style(Style::default().fg(highlight_color).bold())
             .highlight_symbol("> ")
             .highlight_spacing(HighlightSpacing::WhenSelected)
             .repeat_highlight_symbol(true);
 
         prelude::StatefulWidget::render(
-            games_list, area, buf, &mut self.games_state.list_state
+            games_list, area, buf, &mut self.main_menu.state
         );
     }
 
     pub fn render_game_details(&mut self, area: Rect, buf: &mut Buffer) {
-        let selected_game_name = self.games_state.list_state.selected()
-            .and_then(|index| self.games_state.games.get(index));
+        let selected_game_name = self.main_menu.state.selected()
+            .and_then(|index| self.main_menu.items.get(index));
 
         let details_content = match selected_game_name {
             Some(game) => Paragraph::new(game.to_string()),
@@ -178,14 +182,14 @@ impl App {
     }
 
     pub fn render_game_box(&mut self, area: Rect, buf: &mut Buffer) {
-        let border_style = if matches!(self.current_game, Some(_)) {
+        let border_style = if matches!(self.current_main_widget, Some(_)) {
             Style::default().fg(Color::Cyan)
         } else {
             Style::default().fg(Color::DarkGray)
         };
 
-        let selected_game_name = self.games_state.list_state.selected()
-            .and_then(|index| self.games_state.games.get(index));
+        let selected_game_name = self.main_menu.state.selected()
+            .and_then(|index| self.main_menu.items.get(index));
 
         let game_title = selected_game_name
             .map(|game| game.to_string())
@@ -202,7 +206,7 @@ impl App {
             vertical: 1,
         });
 
-        match &self.current_game {
+        match &self.current_main_widget {
             Some(game) => game.render_ref(inner_area, buf),
             None => self.render_game_details(inner_area, buf),
         }
@@ -216,9 +220,11 @@ impl App {
             .render(area, buf);
 
         let debug_content = Paragraph::new(format!(
-            "Loop Mode: {}, Input Mode: {}, Frames: {}, FPS: {:.2}",
+            "Loop Mode: {}, Selected Game: {} Frames: {}, FPS: {:.2}",
             if self.refresh_without_inputs { "Real Time" } else { "Performance" },
-            self.input_mode.to_string(),
+            self.main_menu.state.selected()
+                .and_then(|i| self.main_menu.items.get(i))
+                .map_or("None".to_string(), |game| game.to_string()),
             self.frame_counter,
             self.get_fps()
         ));
