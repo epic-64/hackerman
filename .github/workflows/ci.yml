@@ -27,11 +27,6 @@ jobs:
         os: [macos-latest, windows-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies (Ubuntu only)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt update
-          sudo apt install -y libspeechd-dev clang libclang-dev alsa
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: cargo generate-lockfile
