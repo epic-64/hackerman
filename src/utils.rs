@@ -46,7 +46,7 @@ impl TrimMargin for str {
     }
 }
 
-pub struct AsciiPixel {
+pub struct AsciiCell {
     pub ch: char,
     pub x: u16,
     pub y: u16,
@@ -58,7 +58,7 @@ pub fn parse_ascii_art(
     color_map_str: String,
     color_map: &HashMap<char, Color>,
     default_color: Color,
-) -> Vec<AsciiPixel> {
+) -> Vec<AsciiCell> {
     let art_lines: Vec<Vec<char>> = art.lines().map(|line| line.chars().collect()).collect();
     let color_lines: Vec<Vec<char>> = color_map_str.lines().map(|line| line.chars().collect()).collect();
 
@@ -71,7 +71,7 @@ pub fn parse_ascii_art(
 
         for (x, (&ch, &color_ch)) in art_row.iter().zip(color_row.iter()).enumerate() {
             let color = color_map.get(&color_ch).cloned().unwrap_or(default_color);
-            pixels.push(AsciiPixel {
+            pixels.push(AsciiCell {
                 ch,
                 x: x as u16,
                 y: y as u16,
@@ -84,12 +84,12 @@ pub fn parse_ascii_art(
 }
 
 pub struct AsciiArtWidget {
-    pub pixels: Vec<AsciiPixel>,
+    cells: Vec<AsciiCell>,
 }
 
 impl AsciiArtWidget {
-    pub fn new(pixels: Vec<AsciiPixel>) -> Self {
-        Self { pixels }
+    pub fn new(cells: Vec<AsciiCell>) -> Self {
+        Self { cells }
     }
 
     pub fn from_art(
@@ -98,21 +98,19 @@ impl AsciiArtWidget {
         color_map: &HashMap<char, Color>,
         default_color: Color,
     ) -> Self {
-        let pixels = parse_ascii_art(art, color_map_str, color_map, default_color);
-        Self { pixels }
+        let cells = parse_ascii_art(art, color_map_str, color_map, default_color);
+        Self { cells }
     }
 }
 
 impl Widget for AsciiArtWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        for pixel in self.pixels {
-            let x = pixel.x + area.x;
-            let y = pixel.y + area.y;
+        for pixel in self.cells {
+            let position = Position::new(pixel.x + area.x, pixel.y + area.y);
 
-            // Only draw if inside the area
-            if area.contains(Position::new(x, y)) {
-                buf.cell_mut(Position::new(x, y))
-                    .unwrap()
+            if area.contains(position) {
+                buf.cell_mut(position)
+                    .expect("Failed to get cell at position")
                     .set_char(pixel.ch)
                     .set_fg(pixel.color);
             }
