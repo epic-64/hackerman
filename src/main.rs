@@ -204,7 +204,7 @@ impl App {
         });
 
         match &self.current_main_widget {
-            Some(game) => game.render_ref(inner_area, buf),
+            Some(main_widget) => main_widget.render_ref(inner_area, buf),
             None => self.render_game_details(inner_area, buf),
         }
     }
