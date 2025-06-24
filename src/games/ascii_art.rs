@@ -55,6 +55,18 @@ impl WidgetRef for AsciiArtMain {
             ('W', Color::White),
             ('Y', Color::Yellow),
         ]);
+        
+        // center the art in the area
+        let art_width = art.lines().map(|line| line.len()).max().unwrap_or(0) as u16;
+        let art_height = art.lines().count() as u16;
+        let x_offset = (area.width.saturating_sub(art_width)) / 2;
+        let y_offset = (area.height.saturating_sub(art_height)) / 2;
+        let area = Rect {
+            x: area.x + x_offset,
+            y: area.y + y_offset,
+            width: art_width,
+            height: art_height,
+        };
 
         AsciiArtWidget::from_art(art, foreground_colors, &color_map, Color::Gray).render(area, buf);
     }
