@@ -6,7 +6,7 @@ use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use ratatui::{prelude, text::Line, widgets::{Block, Paragraph}, DefaultTerminal};
 use std::time::Instant;
 use crate::app::{handle_input, MainMenuEntry, InputMode};
-use crate::games::game_widget::MainScreenWidget;
+use crate::games::main_screen_widget::MainScreenWidget;
 use crate::utils::{speak, ToDuration, TrimMargin};
 use ratatui::prelude::*;
 use ratatui::widgets::{Borders, HighlightSpacing, List, ListState};
@@ -68,8 +68,7 @@ impl App {
     pub fn run(mut self, mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
         self.running = true;
 
-        speak("Press F1 to get a general overview of the application.".into());
-        speak("Press F2 to get an overview of where you are.".into());
+        speak("Welcome! Press F1 for a guide. Press F2 for context specific information.".into());
 
         while self.running {
             if self.frame_times.len() > 10 {

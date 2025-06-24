@@ -1,2 +1,2 @@
 pub mod binary_numbers;
-pub mod game_widget;
+pub mod main_screen_widget;
