@@ -1,5 +1,5 @@
-use natural_tts::{Model, NaturalTtsBuilder};
 use natural_tts::models::tts_rs::TtsModel;
+use natural_tts::{Model, NaturalTtsBuilder};
 
 pub fn speak(text: String) -> () {
     let mut natural = NaturalTtsBuilder::default()

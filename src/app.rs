@@ -1,10 +1,10 @@
 use crate::games::binary_numbers;
 use crate::games::main_screen_widget::MainScreenWidget;
-use crate::{App, MainMenu};
+use crate::utils::{speak, TrimMargin};
+use crate::App;
 use binary_numbers::BinaryNumbersGame;
 use crossterm::event::{KeyCode, KeyModifiers};
 use strum_macros::{Display, EnumIter};
-use crate::utils::{speak, TrimMargin};
 
 #[derive(EnumIter, Display, Clone, PartialEq)]
 pub enum MainMenuEntry {
@@ -22,17 +22,11 @@ impl MainMenuEntry {
     }
 }
 
-#[derive(Display, Clone, PartialEq)]
-pub enum InputMode {
-    GameSelection,
-    Game(MainMenuEntry),
-}
-
 pub fn handle_input(app: &mut App, input: crossterm::event::KeyEvent) -> color_eyre::Result<()> {
     if input.modifiers == KeyModifiers::CONTROL && matches!(input.code, KeyCode::Char('c') | KeyCode::Char('C')) {
         app.quit();
     }
-    
+
     if input.code == KeyCode::F(1) {
         speak("
             Hackerman. This is a terminal based environment with minigames.
