@@ -1,6 +1,5 @@
 use crate::games::binary_numbers;
 use crate::games::main_screen_widget::MainScreenWidget;
-use crate::utils::{speak, TrimMargin};
 use crate::App;
 use binary_numbers::BinaryNumbersGame;
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -27,28 +26,10 @@ pub fn handle_input(app: &mut App, input: crossterm::event::KeyEvent) -> color_e
         app.quit();
     }
 
-    if input.code == KeyCode::F(1) {
-        speak("
-            Hackerman. This is a terminal based environment with minigames.
-            There is a main menu that you can navigate using the up and down arrow keys.
-            Press Enter to select a game.
-            Press Escape to return to the main menu.
-            Press F2 to get an overview of where you currently are.
-            Press F1 to read this help message again.
-        ".nice());
-    }
-
     if input.code == KeyCode::F(2) {
         match app.current_main_widget {
-            None => {
-                speak("You are in the main menu.".into());
-                speak(format!(
-                    "highlighted item: {}",
-                    app.main_menu.get_selected_entry()
-                        .map_or("No game selected".into(), |entry| entry.to_string()))
-                );
-            },
-            Some(ref game) => speak(format!("{}", game.get_overview())),
+            None => {}
+            Some(ref game) => {}
         }
     }
 
@@ -67,11 +48,9 @@ fn handle_game_selection_input(app: &mut App, input: crossterm::event::KeyEvent)
     match input.code {
         KeyCode::Up => {
             app.main_menu.select_previous();
-            speak(app.main_menu.get_selected_entry().map_or("No game selected".into(), |entry| entry.to_string()));
         },
         KeyCode::Down => {
             app.main_menu.select_next();
-            speak(app.main_menu.get_selected_entry().map_or("No game selected".into(), |entry| entry.to_string()));
         }
         KeyCode::Enter => {
             app.current_main_widget = match app.main_menu.get_selected_entry() {

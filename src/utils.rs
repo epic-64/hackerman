@@ -1,16 +1,3 @@
-use natural_tts::models::tts_rs::TtsModel;
-use natural_tts::{Model, NaturalTtsBuilder};
-
-pub fn speak(text: String) -> () {
-    let mut natural = NaturalTtsBuilder::default()
-        .default_model(Model::TTS)
-        .tts_model(TtsModel::default())
-        .build()
-        .expect("Could not build Natural TTS");
-
-    let _ = natural.say_auto(text); // not much we can do with the result.
-}
-
 pub trait ToDuration {
     /// Convert a number to a [`std::time::Duration`].
     fn milliseconds(&self) -> std::time::Duration;

@@ -4,7 +4,7 @@ mod games;
 
 use crate::app::{handle_input, MainMenuEntry};
 use crate::games::main_screen_widget::MainScreenWidget;
-use crate::utils::{speak, ToDuration, TrimMargin};
+use crate::utils::{ToDuration, TrimMargin};
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use ratatui::prelude::*;
 use ratatui::widgets::{Borders, HighlightSpacing, List, ListState};
@@ -67,8 +67,6 @@ impl App {
     /// Run the application's main loop.
     pub fn run(mut self, mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
         self.running = true;
-
-        speak("Welcome! Press F1 for a guide. Press F2 for context specific information.".into());
 
         while self.running {
             if self.frame_times.len() > 10 {
