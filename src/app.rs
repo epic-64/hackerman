@@ -1,4 +1,4 @@
-use crate::games::binary_numbers;
+use crate::games::{ascii_art, binary_numbers};
 use crate::games::main_screen_widget::MainScreenWidget;
 use crate::{App, MenuEntry};
 use binary_numbers::BinaryNumbersGame;
@@ -25,7 +25,7 @@ impl MenuEntry for MainMenuEntry {
 impl MainMenuEntry {
     pub fn get_main_screen_widget(&self) -> Option<Box<dyn MainScreenWidget>> {
         match self {
-            MainMenuEntry::AsciiArt => Some(Box::new(crate::games::ascii_art::AsciiArtMain::new())),
+            MainMenuEntry::AsciiArt => Some(Box::new(ascii_art::AsciiArtMain::new())),
             MainMenuEntry::BinaryNumbers => Some(Box::new(BinaryNumbersGame::new())),
             _ => None,
         }
@@ -49,13 +49,13 @@ pub fn handle_input(app: &mut App, input: crossterm::event::KeyEvent) -> color_e
     }
 
     match &mut app.current_main_widget {
-        None => handle_game_selection_input(app, input),
+        None => handle_main_menu_inputs(app, input),
         Some(game) => game.handle_input(input),
     }
     Ok(())
 }
 
-fn handle_game_selection_input(app: &mut App, input: crossterm::event::KeyEvent) -> () {
+fn handle_main_menu_inputs(app: &mut App, input: crossterm::event::KeyEvent) -> () {
     app.main_menu.handle_navigation(input);
 
     match input.code {

@@ -4,9 +4,9 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Widget};
 use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
-use crate::utils::{AsciiArtWidget, TrimMargin};
+use crate::utils::{AsciiArtWidget, AsciiCells, TrimMargin};
 
-pub(crate) struct AsciiArtMain {
+pub struct AsciiArtMain {
     exit_intended: bool,
 }
 
@@ -68,7 +68,8 @@ impl WidgetRef for AsciiArtMain {
             height: art_height,
         };
 
-        AsciiArtWidget::from_art(art, foreground_colors, &color_map, Color::DarkGray).render(area, buf);
+        let cells = AsciiCells::from(art, foreground_colors, &color_map, Color::DarkGray);
+        AsciiArtWidget::new(cells).render(area, buf);
     }
 }
 
