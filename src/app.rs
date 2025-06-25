@@ -332,13 +332,13 @@ impl App {
         );
 
         Paragraph::new(content)
-            .block(Block::bordered().title("Debug").dark_gray())
+            .block(Block::bordered().border_style(Style::default().dark_gray()).title("Debug"))
             .render(area, buf);
     }
 
     pub fn render_bottom_area(&self, area: Rect, buf: &mut Buffer) {
         Paragraph::new("F1: Overview, F2: Settings, Space: Pause, Ctrl+C: Quit")
-            .block(Block::bordered().dark_gray())
+            .block(Block::bordered().border_style(Style::default().dark_gray()).title("Controls"))
             .render(area, buf);
     }
 

@@ -231,7 +231,7 @@ impl BinaryNumbersPuzzle {
 
         let time_total = 5.0;
         let time_left = time_total;
-        let selected_suggestion = None;
+        let selected_suggestion = Some(suggestions[0]);
         let guess_result = None;
 
         Self {
