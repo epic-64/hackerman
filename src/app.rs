@@ -321,13 +321,7 @@ impl App {
     }
 
     pub fn render_top_area(&self, area: Rect, buf: &mut Buffer) {
-        // Block::bordered()
-        //     .title("Debug Info")
-        //     .title_alignment(Alignment::Center)
-        //     .border_style(Style::default().fg(Color::Magenta))
-        //     .render(area, buf);
-
-        let debug_content = Paragraph::new(format!(
+        let content = format!(
             "Loop Mode: {}, Selected Game: {} Frames: {}, FPS: {:.2}",
             if self.refresh_without_inputs { "Real Time" } else { "Performance" },
             self.main_menu.state.selected()
@@ -335,33 +329,17 @@ impl App {
                 .map_or("None".to_string(), |game| game.to_string()),
             self.frame_counter,
             self.get_fps()
-        ));
+        );
 
-        let debug_inner = Layout::default()
-            .horizontal_margin(1)
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1)])
-            .split(area)[0];
-        debug_content.render(debug_inner, buf);
+        Paragraph::new(content)
+            .block(Block::bordered().title("Debug").dark_gray())
+            .render(area, buf);
     }
 
     pub fn render_bottom_area(&self, area: Rect, buf: &mut Buffer) {
-        // Block::bordered()
-        //     .title("Controls")
-        //     .title_alignment(Alignment::Center)
-        //     .border_style(Style::default().fg(Color::Magenta))
-        //     .render(area, buf);
-
-        let controls_content = Paragraph::new(
-            "F1: Overview, F2: Settings, Space: Pause, Ctrl+C: Quit"
-        );
-
-        let controls_inner = Layout::default()
-            .horizontal_margin(1)
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1)])
-            .split(area)[0];
-        controls_content.render(controls_inner, buf);
+        Paragraph::new("F1: Overview, F2: Settings, Space: Pause, Ctrl+C: Quit")
+            .block(Block::bordered().dark_gray())
+            .render(area, buf);
     }
 
     pub fn render_middle_area(&mut self, main_area: Rect, buf: &mut Buffer) {
@@ -380,9 +358,9 @@ impl Widget for &mut App {
         let [top_area, main_area, bottom_area] = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![
-                Constraint::Length(1),
+                Constraint::Length(3),
                 Constraint::Fill(1),
-                Constraint::Length(1),
+                Constraint::Length(3),
             ])
             .areas(area);
 
