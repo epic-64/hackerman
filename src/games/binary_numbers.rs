@@ -73,8 +73,8 @@ impl WidgetRef for BinaryNumbersPuzzle {
         // render a progress bar
         Gauge::default()
             .gauge_style(Style::new().white().on_black().italic())
-            .ratio(self.frames_left as f64 / self.frames_total as f64)
-            .label(format!("Time left: {} seconds", self.frames_left / 60).to_span().style(Style::default().fg(Color::Yellow)))
+            .ratio(self.time_left / self.time_total)
+            .label(format!("Time left: {:.2} seconds", self.time_left).to_span().style(Style::default().fg(Color::Yellow)))
             .render(progress_bar_area, buf);
 
         // render the guess result if available
@@ -112,8 +112,8 @@ pub struct BinaryNumbersGame {
 }
 
 impl MainScreenWidget for BinaryNumbersGame {
-    fn run(&mut self) {
-        self.puzzle.run();
+    fn run(&mut self, dt: f64) {
+        self.puzzle.run(dt);
     }
 
     fn handle_input(&mut self, input: KeyEvent) -> () {
@@ -209,8 +209,8 @@ pub struct BinaryNumbersPuzzle {
     current_number: u32,
     suggestions: Vec<u32>,
     selected_suggestion: Option<u32>,
-    frames_total: u32,
-    frames_left: u32,
+    time_total: f64,
+    time_left: f64,
     guess_result: Option<GuessResult>,
 }
 
@@ -229,17 +229,16 @@ impl BinaryNumbersPuzzle {
         let current_number = suggestions[0];
         suggestions.shuffle(&mut rng);
 
-        let seconds_to_guess = 5;
-        let frames_total = seconds_to_guess * 60; // assuming 60 frames per second
-        let frames_left = frames_total;
+        let time_total = 5.0;
+        let time_left = time_total;
         let selected_suggestion = None;
         let guess_result = None;
 
         Self {
             current_number,
             suggestions,
-            frames_left,
-            frames_total,
+            time_total,
+            time_left,
             selected_suggestion,
             guess_result
         }
@@ -257,15 +256,15 @@ impl BinaryNumbersPuzzle {
         format!("{:08b}", self.current_number)
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, dt: f64) {
         if self.guess_result.is_some() {
             // If a guess has been made, we don't need to run the game logic anymore.
             return;
         }
 
-        self.frames_left = self.frames_left.saturating_sub(1);
+        self.time_left = (self.time_left - dt).max(0.0);
 
-        if self.frames_left == 0 {
+        if self.time_left <= 0.0 {
             self.guess_result = Some(GuessResult::Timeout);
         }
     }

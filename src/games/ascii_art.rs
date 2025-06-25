@@ -73,7 +73,7 @@ impl WidgetRef for AsciiArtMain {
 }
 
 impl MainScreenWidget for AsciiArtMain {
-    fn run(&mut self) {}
+    fn run(&mut self, dt: f64) {}
 
     fn handle_input(&mut self, input: KeyEvent) -> () {}
 
