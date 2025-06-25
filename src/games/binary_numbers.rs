@@ -103,7 +103,13 @@ impl WidgetRef for BinaryNumbersPuzzle {
 
             let text = vec![
                 Line::from(result_text.fg(color)),
-                Line::from("Press Enter to play again or Esc to exit.".fg(Color::White)),
+                Line::from(vec![
+                    Span::styled("Press ", Style::default().fg(Color::White)),
+                    Span::styled("Enter", Style::default().fg(Color::LightCyan)),
+                    Span::styled(" to play again or ", Style::default().fg(Color::White)),
+                    Span::styled("Esc", Style::default().fg(Color::LightCyan)),
+                    Span::styled(" to exit.", Style::default().fg(Color::White)),
+                ]),
             ];
 
             Paragraph::new(text)
