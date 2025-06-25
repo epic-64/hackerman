@@ -1,6 +1,8 @@
 use crate::games::main_screen_widget::MainScreenWidget;
+use crate::games::settings::SettingsMain;
 use crate::games::{ascii_art, binary_numbers};
 use crate::utils::ToDuration;
+use ascii_art::AsciiArtMain;
 use binary_numbers::BinaryNumbersGame;
 use crossterm::event;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -16,17 +18,21 @@ use strum_macros::{Display, EnumIter};
 
 #[derive(EnumIter, Display, Clone, PartialEq)]
 pub enum MainMenuEntry {
+    Settings,
     AsciiArt,
     BinaryNumbers,
     DinoJump,
+    Exit,
 }
 
 impl MenuEntry for MainMenuEntry {
     fn name(&self) -> &str {
         match self {
+            MainMenuEntry::Settings => "Settings",
             MainMenuEntry::AsciiArt => "Ascii Art",
             MainMenuEntry::BinaryNumbers => "Binary Numbers",
             MainMenuEntry::DinoJump => "Dino Jump",
+            MainMenuEntry::Exit => "Exit",
         }
     }
 }
@@ -34,27 +40,27 @@ impl MenuEntry for MainMenuEntry {
 impl MainMenuEntry {
     pub fn get_main_screen_widget(&self) -> Option<Box<dyn MainScreenWidget>> {
         match self {
-            MainMenuEntry::AsciiArt => Some(Box::new(ascii_art::AsciiArtMain::new())),
+            MainMenuEntry::Settings => Some(Box::new(SettingsMain::new())),
+            MainMenuEntry::AsciiArt => Some(Box::new(AsciiArtMain::new())),
             MainMenuEntry::BinaryNumbers => Some(Box::new(BinaryNumbersGame::new())),
-            _ => None,
+            MainMenuEntry::DinoJump => None, // Dino Jump is not implemented yet
+            MainMenuEntry::Exit => None, // Exit does not return a widget
         }
     }
 }
 
-pub fn handle_input(app: &mut App, input: crossterm::event::KeyEvent) -> color_eyre::Result<()> {
-    if input.modifiers == KeyModifiers::CONTROL && matches!(input.code, KeyCode::Char('c') | KeyCode::Char('C')) {
-        app.quit();
-    }
-
-    if input.code == KeyCode::F(2) {
-        match app.current_main_widget {
+pub fn handle_input(app: &mut App, input: KeyEvent) -> color_eyre::Result<()> {
+    match input.code {
+        KeyCode::Char('c') | KeyCode::Char('C') if input.modifiers == KeyModifiers::CONTROL => {
+            app.quit();
+        }
+        KeyCode::Char(' ') => app.refresh_without_inputs = !app.refresh_without_inputs,
+        KeyCode::Esc => app.current_main_widget = None,
+        KeyCode::F(2) => match app.current_main_widget {
             None => {}
             Some(ref game) => {}
-        }
-    }
-
-    if input.code == KeyCode::Char(' ') {
-        app.refresh_without_inputs = !app.refresh_without_inputs;
+        },
+        _ => {}
     }
 
     match &mut app.current_main_widget {
@@ -64,11 +70,16 @@ pub fn handle_input(app: &mut App, input: crossterm::event::KeyEvent) -> color_e
     Ok(())
 }
 
-fn handle_main_menu_inputs(app: &mut App, input: crossterm::event::KeyEvent) -> () {
+fn handle_main_menu_inputs(app: &mut App, input: KeyEvent) -> () {
     app.main_menu.handle_navigation(input);
 
     match input.code {
         KeyCode::Enter => {
+            if app.main_menu.get_selected_entry() == Some(&MainMenuEntry::Exit) {
+                app.quit();
+                return;
+            }
+
             app.current_main_widget = match app.main_menu.get_selected_entry() {
                 Some(entry) => entry.get_main_screen_widget(),
                 None => None,
@@ -172,10 +183,10 @@ impl App {
 
             terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
 
-            if let Some(game) = &mut self.current_main_widget {
-                game.run(dt.as_secs_f64());
+            if let Some(widget) = &mut self.current_main_widget {
+                widget.run(dt.as_secs_f64());
 
-                if game.is_exit_intended() {
+                if widget.is_exit_intended() {
                     self.current_main_widget = None;
                 }
             }
@@ -183,7 +194,6 @@ impl App {
             self.frame_counter += 1;
 
             if self.refresh_without_inputs {
-                // Use dt-based timeout, capped to avoid very large values
                 let poll_timeout = cmp::min(dt, target_frame_duration);
                 if event::poll(poll_timeout)? {
                     self.handle_crossterm_events()?;
@@ -311,11 +321,11 @@ impl App {
     }
 
     pub fn render_top_area(&self, area: Rect, buf: &mut Buffer) {
-        Block::bordered()
-            .title("Debug Info")
-            .title_alignment(Alignment::Center)
-            .border_style(Style::default().fg(Color::Magenta))
-            .render(area, buf);
+        // Block::bordered()
+        //     .title("Debug Info")
+        //     .title_alignment(Alignment::Center)
+        //     .border_style(Style::default().fg(Color::Magenta))
+        //     .render(area, buf);
 
         let debug_content = Paragraph::new(format!(
             "Loop Mode: {}, Selected Game: {} Frames: {}, FPS: {:.2}",
@@ -328,8 +338,7 @@ impl App {
         ));
 
         let debug_inner = Layout::default()
-            .horizontal_margin(2)
-            .vertical_margin(1)
+            .horizontal_margin(1)
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(1)])
             .split(area)[0];
@@ -337,19 +346,18 @@ impl App {
     }
 
     pub fn render_bottom_area(&self, area: Rect, buf: &mut Buffer) {
-        Block::bordered()
-            .title("Controls")
-            .title_alignment(Alignment::Center)
-            .border_style(Style::default().fg(Color::Magenta))
-            .render(area, buf);
+        // Block::bordered()
+        //     .title("Controls")
+        //     .title_alignment(Alignment::Center)
+        //     .border_style(Style::default().fg(Color::Magenta))
+        //     .render(area, buf);
 
         let controls_content = Paragraph::new(
-            "Use arrow keys to navigate the games list. ENTER to select game. CTRL+C to exit."
+            "F1: Overview, F2: Settings, Space: Pause, Ctrl+C: Quit"
         );
 
         let controls_inner = Layout::default()
-            .horizontal_margin(2)
-            .vertical_margin(1)
+            .horizontal_margin(1)
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Length(1)])
             .split(area)[0];
@@ -372,9 +380,9 @@ impl Widget for &mut App {
         let [top_area, main_area, bottom_area] = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![
-                Constraint::Length(3),
+                Constraint::Length(1),
                 Constraint::Fill(1),
-                Constraint::Length(3),
+                Constraint::Length(1),
             ])
             .areas(area);
 
