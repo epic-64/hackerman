@@ -21,11 +21,13 @@ fn main() -> color_eyre::Result<()> {
     result
 }
 
+#[derive(Clone)]
 pub enum MenuOrientation {
     Horizontal,
     Vertical,
 }
 
+#[derive(Clone)]
 struct StatefulMenu<T> {
     orientation: MenuOrientation,
     items: Vec<T>,
@@ -62,6 +64,10 @@ impl<T: MenuEntry> StatefulMenu<T> {
                 _ => {}
             }
         }
+    }
+
+    fn get_lines(&self) -> Vec<Line> {
+        self.items.iter().map(|item| Line::from(item.name())).collect()
     }
 }
 
@@ -179,7 +185,7 @@ impl App {
         }
     }
 
-    pub fn render_games_list(&mut self, area: Rect, buf: &mut Buffer) {
+    pub fn render_main_menu(&mut self, area: Rect, buf: &mut Buffer) {
         let highlight_color = if self.current_main_widget.is_none() {
             Color::Cyan
         } else {
@@ -188,11 +194,10 @@ impl App {
 
         let border_style = Style::default().fg(highlight_color);
 
-        let games = self.main_menu.items.iter()
-            .map(|game| Line::from(game.to_string()))
-            .collect::<Vec<_>>();
+        let binding = self.main_menu.clone();
+        let menu_lines = binding.get_lines();
 
-        let games_list = List::new(games.clone())
+        let games_list = List::new(menu_lines)
             .block(Block::default().borders(Borders::ALL).border_style(border_style)
                 .title("Main Menu").title_alignment(Alignment::Center))
             .highlight_style(Style::default().fg(highlight_color).bold())
@@ -217,7 +222,7 @@ impl App {
         details_content.render(area, buf);
     }
 
-    pub fn render_game_box(&mut self, area: Rect, buf: &mut Buffer) {
+    pub fn render_main_widget(&mut self, area: Rect, buf: &mut Buffer) {
         let border_style = if matches!(self.current_main_widget, Some(_)) {
             Style::default().fg(Color::Cyan)
         } else {
@@ -294,14 +299,14 @@ impl App {
         controls_content.render(controls_inner, buf);
     }
 
-    pub fn render_main_area(&mut self, main_area: Rect, buf: &mut Buffer) {
+    pub fn render_middle_area(&mut self, main_area: Rect, buf: &mut Buffer) {
         let [left_area, right_area] = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![Constraint::Length(28), Constraint::Min(24),])
             .areas(main_area);
 
-        self.render_games_list(left_area, buf);
-        self.render_game_box(right_area, buf);
+        self.render_main_menu(left_area, buf);
+        self.render_main_widget(right_area, buf);
     }
 }
 
@@ -317,7 +322,7 @@ impl Widget for &mut App {
             .areas(area);
 
         self.render_top_area(top_area, buf);
-        self.render_main_area(main_area, buf);
+        self.render_middle_area(main_area, buf);
         self.render_bottom_area(bottom_area, buf);
     }
 }

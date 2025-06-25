@@ -14,7 +14,11 @@ pub enum MainMenuEntry {
 
 impl MenuEntry for MainMenuEntry {
     fn name(&self) -> &str {
-        std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
+        match self {
+            MainMenuEntry::AsciiArt => "Ascii Art",
+            MainMenuEntry::BinaryNumbers => "Binary Numbers",
+            MainMenuEntry::DinoJump => "Dino Jump",
+        }
     }
 }
 
