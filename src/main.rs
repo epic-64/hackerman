@@ -2,6 +2,7 @@ mod utils;
 mod app;
 mod games;
 
+use std::{cmp, thread};
 use crate::app::{handle_input, MainMenuEntry};
 use crate::games::main_screen_widget::MainScreenWidget;
 use crate::utils::{ToDuration, TrimMargin};
@@ -66,9 +67,14 @@ impl App {
 
     /// Run the application's main loop.
     pub fn run(mut self, mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
-        self.running = true;
+        let mut last_frame_time = Instant::now(); // Initialize previous time
+        let target_frame_duration = 33.milliseconds(); // Target frame duration for 30 FPS
 
         while self.running {
+            let now = Instant::now();
+            let dt = now - last_frame_time;
+            last_frame_time = now;
+
             if self.frame_times.len() > 10 {
                 self.frame_times.remove(0);
             }
@@ -88,13 +94,20 @@ impl App {
             self.frame_counter += 1;
 
             if self.refresh_without_inputs {
-                // real time mode: poll for events every 16 milliseconds, do not block otherwise
-                if event::poll(16.milliseconds())? {
+                // Use dt-based timeout, capped to avoid very large values
+                let poll_timeout = cmp::min(dt, target_frame_duration);
+                if event::poll(poll_timeout)? {
                     self.handle_crossterm_events()?;
                 }
             } else {
                 // performance mode: block thread until an input event occurs
                 self.handle_crossterm_events()?;
+            }
+
+            // Optional: sleep to avoid running too fast
+            let frame_duration = last_frame_time.elapsed();
+            if frame_duration < target_frame_duration {
+                thread::sleep(target_frame_duration - frame_duration);
             }
         }
 
