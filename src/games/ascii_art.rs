@@ -68,7 +68,7 @@ impl WidgetRef for AsciiArtMain {
             height: art_height,
         };
 
-        AsciiArtWidget::from_art(art, foreground_colors, &color_map, Color::Gray).render(area, buf);
+        AsciiArtWidget::from_art(art, foreground_colors, &color_map, Color::DarkGray).render(area, buf);
     }
 }
 
