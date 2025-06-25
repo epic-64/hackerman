@@ -1,6 +1,6 @@
 use crate::games::binary_numbers;
 use crate::games::main_screen_widget::MainScreenWidget;
-use crate::App;
+use crate::{App, MenuEntry};
 use binary_numbers::BinaryNumbersGame;
 use crossterm::event::{KeyCode, KeyModifiers};
 use strum_macros::{Display, EnumIter};
@@ -10,6 +10,12 @@ pub enum MainMenuEntry {
     AsciiArt,
     BinaryNumbers,
     DinoJump,
+}
+
+impl MenuEntry for MainMenuEntry {
+    fn name(&self) -> &str {
+        std::any::type_name::<Self>().split("::").last().unwrap_or("Unknown")
+    }
 }
 
 impl MainMenuEntry {
@@ -46,13 +52,9 @@ pub fn handle_input(app: &mut App, input: crossterm::event::KeyEvent) -> color_e
 }
 
 fn handle_game_selection_input(app: &mut App, input: crossterm::event::KeyEvent) -> () {
+    app.main_menu.handle_navigation(input);
+
     match input.code {
-        KeyCode::Up => {
-            app.main_menu.select_previous();
-        },
-        KeyCode::Down => {
-            app.main_menu.select_next();
-        }
         KeyCode::Enter => {
             app.current_main_widget = match app.main_menu.get_selected_entry() {
                 Some(entry) => entry.get_main_screen_widget(),

@@ -6,7 +6,7 @@ use std::{cmp, thread};
 use crate::app::{handle_input, MainMenuEntry};
 use crate::games::main_screen_widget::MainScreenWidget;
 use crate::utils::{ToDuration, TrimMargin};
-use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::prelude::*;
 use ratatui::widgets::{Borders, HighlightSpacing, List, ListState};
 use ratatui::{prelude, text::Line, widgets::{Block, Paragraph}, DefaultTerminal};
@@ -21,12 +21,22 @@ fn main() -> color_eyre::Result<()> {
     result
 }
 
-struct MainMenu {
-    items: Vec<MainMenuEntry>,
+pub enum MenuOrientation {
+    Horizontal,
+    Vertical,
+}
+
+struct StatefulMenu<T> {
+    orientation: MenuOrientation,
+    items: Vec<T>,
     state: ListState,
 }
 
-impl MainMenu {
+pub trait MenuEntry {
+    fn name(&self) -> &str;
+}
+
+impl<T: MenuEntry> StatefulMenu<T> {
     fn select_previous(&mut self) {
         self.state.select_previous();
     }
@@ -35,8 +45,23 @@ impl MainMenu {
         self.state.select_next();
     }
 
-    fn get_selected_entry(&self) -> Option<&MainMenuEntry> {
+    fn get_selected_entry(&self) -> Option<&T> {
         self.state.selected().and_then(|i| self.items.get(i))
+    }
+
+    fn handle_navigation(&mut self, input: KeyEvent) -> () {
+        match self.orientation {
+            MenuOrientation::Horizontal => match input.code {
+                KeyCode::Left => self.select_previous(),
+                KeyCode::Right => self.select_next(),
+                _ => {}
+            }
+            MenuOrientation::Vertical => match input.code {
+                KeyCode::Up => self.select_previous(),
+                KeyCode::Down => self.select_next(),
+                _ => {}
+            }
+        }
     }
 }
 
@@ -44,7 +69,7 @@ pub struct App {
     running: bool,
     frame_counter: u64,
     current_main_widget: Option<Box<dyn MainScreenWidget>>,
-    main_menu: MainMenu,
+    main_menu: StatefulMenu<MainMenuEntry>,
     refresh_without_inputs: bool,
     frame_times: Vec<Instant>,
 }
@@ -55,7 +80,8 @@ impl App {
         Self {
             running: true,
             frame_counter: 0,
-            main_menu: MainMenu {
+            main_menu: StatefulMenu {
+                orientation: MenuOrientation::Vertical,
                 items: MainMenuEntry::iter().collect(),
                 state: ListState::default().with_selected(Some(0)),
             },
