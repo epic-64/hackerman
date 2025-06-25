@@ -15,6 +15,7 @@ use std::time::Instant;
 use std::{cmp, thread};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
+use crate::games::binary_numbers::Bits;
 
 #[derive(EnumIter, Display, Clone, PartialEq)]
 pub enum MainMenuEntry {
@@ -42,7 +43,7 @@ impl MainMenuEntry {
         match self {
             MainMenuEntry::Settings => Some(Box::new(SettingsMain::new())),
             MainMenuEntry::AsciiArt => Some(Box::new(AsciiArtMain::new())),
-            MainMenuEntry::BinaryNumbers => Some(Box::new(BinaryNumbersGame::new())),
+            MainMenuEntry::BinaryNumbers => Some(Box::new(BinaryNumbersGame::new(Bits::Eight))),
             MainMenuEntry::DinoJump => None, // Dino Jump is not implemented yet
             MainMenuEntry::Exit => None, // Exit does not return a widget
         }
@@ -168,7 +169,7 @@ impl App {
     /// Run the application's main loop.
     pub fn run(mut self, mut terminal: DefaultTerminal) -> color_eyre::Result<()> {
         let mut last_frame_time = Instant::now(); // Initialize previous time
-        let target_frame_duration = 33.milliseconds(); // Target frame duration for 30 FPS
+        let target_frame_duration = 16.milliseconds(); // Target frame duration for 30 FPS
 
         while self.running {
             let now = Instant::now();
@@ -253,13 +254,13 @@ impl App {
     }
 
     pub fn render_main_menu(&mut self, area: Rect, buf: &mut Buffer) {
-        let highlight_color = if self.current_main_widget.is_none() {
-            Color::Cyan
-        } else {
-            Color::DarkGray
-        };
+        let highlight_color = Color::LightCyan;
 
-        let border_style = Style::default().fg(highlight_color);
+        let border_style = if self.current_main_widget.is_none() {
+            Style::default().fg(Color::White).bold()
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
 
         let binding = self.main_menu.clone();
         let menu_lines = binding.get_lines();
@@ -278,8 +279,7 @@ impl App {
     }
 
     pub fn render_game_details(&mut self, area: Rect, buf: &mut Buffer) {
-        let selected_game_name = self.main_menu.state.selected()
-            .and_then(|index| self.main_menu.items.get(index));
+        let selected_game_name = self.main_menu.get_selected_entry();
 
         let details_content = match selected_game_name {
             Some(game) => Paragraph::new(game.to_string()),
@@ -291,23 +291,12 @@ impl App {
 
     pub fn render_main_widget(&mut self, area: Rect, buf: &mut Buffer) {
         let border_style = if matches!(self.current_main_widget, Some(_)) {
-            Style::default().fg(Color::Cyan)
+            Style::default().fg(Color::White).bold()
         } else {
             Style::default().fg(Color::DarkGray)
         };
 
-        let selected_game_name = self.main_menu.state.selected()
-            .and_then(|index| self.main_menu.items.get(index));
-
-        let game_title = selected_game_name
-            .map(|game| game.to_string())
-            .unwrap_or_else(|| "Game Details".to_string());
-
-        Block::bordered()
-            .border_style(border_style)
-            .title(game_title)
-            .title_alignment(Alignment::Center)
-            .render(area, buf);
+        Block::bordered().border_style(border_style).render(area, buf);
 
         let inner_area = area.inner(Margin {
             horizontal: 1,

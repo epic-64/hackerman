@@ -1,12 +1,14 @@
+use color_eyre::owo_colors::OwoColorize;
 use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
 use crossterm::event::{KeyCode, KeyEvent};
 use rand::prelude::SliceRandom;
 use rand::Rng;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
-use ratatui::prelude::{Alignment, Color, Style, Stylize, Widget};
-use ratatui::text::ToSpan;
-use ratatui::widgets::{Block, Gauge, Paragraph};
+use ratatui::prelude::{Alignment, Color, Line, Style, Stylize, Widget};
+use ratatui::prelude::Alignment::Center;
+use ratatui::text::{Span, ToSpan};
+use ratatui::widgets::{Block, Gauge, LineGauge, Paragraph};
 
 impl WidgetRef for BinaryNumbersGame {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
@@ -16,29 +18,32 @@ impl WidgetRef for BinaryNumbersGame {
 
 impl WidgetRef for BinaryNumbersPuzzle {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let [title_area, current_number_area, suggestions_area, progress_bar_area, result_area] = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Length(5),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(5),
-            ])
-            .margin(1)
+        let [_left, middle, _right] = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Fill(0), Constraint::Length(65), Constraint::Fill(0)])
             .areas(area);
 
-        Paragraph::new("Binary Numbers Puzzle")
-            .alignment(Alignment::Center)
-            .render(title_area, buf);
+        let [_s1, current_number_area, suggestions_area, _s2, progress_bar_area, result_area, _s3] = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Fill(0), // Spacer
+                Constraint::Length(5), // Current number area
+                Constraint::Length(3), // Suggestions area
+                Constraint::Length(2), // Spacer
+                Constraint::Length(3), // Progress bar area
+                Constraint::Length(6), // Result area
+                Constraint::Fill(0), // Spacer
+            ])
+            .margin(2)
+            .areas(middle);
 
         let binary_string = self.current_to_binary_string();
         let suggestions = self.suggestions();
 
         Paragraph::new(format!("\n{}", binary_string))
-            .block(Block::bordered().title("Binary Number").title_alignment(Alignment::Center))
-            .alignment(Alignment::Center)
-            .render(current_number_area.inner(Margin::new(12, 0)), buf);
+            .block(Block::bordered())
+            .alignment(Center)
+            .render(current_number_area, buf);
 
         // create sub layout for suggestions
         let suggestions_layout = Layout::default()
@@ -48,7 +53,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
 
         for (i, suggestion) in suggestions.iter().enumerate() {
             let background_color = if self.selected_suggestion == Some(*suggestion) {
-                Style::default().bg(Color::Yellow).fg(Color::Black)
+                Style::default().bg(Color::DarkGray)
             } else {
                 Style::default()
             };
@@ -57,7 +62,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
             let is_correct_number = self.is_correct_guess(*suggestion);
 
             let foreground_color = if show_correct_number && is_correct_number {
-                Color::Green
+                Color::LightGreen
             } else {
                 Color::White
             };
@@ -72,10 +77,14 @@ impl WidgetRef for BinaryNumbersPuzzle {
 
         // render a progress bar
         Gauge::default()
-            .gauge_style(Style::new().white().on_black().italic())
+            .gauge_style(Style::default().green().on_dark_gray())
             .ratio(self.time_left / self.time_total)
-            .label(format!("Time left: {:.2} seconds", self.time_left).to_span().style(Style::default().fg(Color::Yellow)))
+            .label(format!("{:.2} seconds", self.time_left)
+                .to_span().style(Style::default().white()))
+            .block(Block::bordered().title("Time Remaining").title_alignment(Center))
             .render(progress_bar_area, buf);
+
+        Block::bordered().title("Result").title_alignment(Center).render(result_area, buf);
 
         // render the guess result if available
         if let Some(result) = &self.guess_result {
@@ -91,23 +100,22 @@ impl WidgetRef for BinaryNumbersPuzzle {
                 GuessResult::Timeout => Color::Yellow,
             };
 
-            Paragraph::new(result_text)
-                .block(Block::bordered())
-                .alignment(Alignment::Center)
-                .style(Style::default().fg(color))
-                .render(result_area, buf);
+            let text = vec![
+                Line::from(result_text.fg(color)),
+                Line::from("Press Enter to play again or Esc to exit.".fg(Color::White)),
+            ];
 
-            // Press Enter to play again or Esc to exit
-            Paragraph::new("Press Enter to play again or Esc to exit.")
-                .alignment(Alignment::Center)
-                .style(Style::default().fg(Color::White))
-                .render(result_area.inner(Margin::new(0, 2)), buf);
+            Paragraph::new(text)
+                .alignment(Center)
+                .style(Style::default().fg(color))
+                .render(result_area.inner(Margin::new(1, 2)), buf);
         }
     }
 }
 
 pub struct BinaryNumbersGame {
     puzzle: BinaryNumbersPuzzle,
+    bits: Bits,
     exit_intended: bool,
 }
 
@@ -126,8 +134,16 @@ impl MainScreenWidget for BinaryNumbersGame {
 }
 
 impl BinaryNumbersGame {
-    pub fn new() -> Self {
-        Self { puzzle: BinaryNumbersPuzzle::new(), exit_intended: false }
+    pub fn new(bits: Bits) -> Self {
+        Self {
+            bits: bits.clone(),
+            puzzle: Self::init_puzzle(bits),
+            exit_intended: false
+        }
+    }
+
+    pub fn init_puzzle(bits: Bits) -> BinaryNumbersPuzzle {
+        BinaryNumbersPuzzle::new(bits)
     }
 }
 
@@ -170,9 +186,6 @@ impl BinaryNumbersGame {
                         };
                         self.puzzle.selected_suggestion = Some(self.puzzle.suggestions[prev_index]);
                     }
-                } else {
-                    // if no suggestion is selected, select the first one
-                    self.puzzle.selected_suggestion = Some(self.puzzle.suggestions[0]);
                 }
             }
             KeyCode::Enter => {
@@ -192,7 +205,7 @@ impl BinaryNumbersGame {
 
     fn handle_result_available(&mut self, input: KeyEvent) {
         match input.code {
-            KeyCode::Enter => self.puzzle = BinaryNumbersPuzzle::new(),
+            KeyCode::Enter => self.puzzle = Self::init_puzzle(self.bits.clone()),
             KeyCode::Esc => self.exit_intended = true,
             _ => {}
         }
@@ -205,7 +218,35 @@ enum GuessResult {
     Timeout,
 }
 
+#[derive(Clone)]
+pub enum Bits { Four, Eight, Twelve, Sixteen, }
+
+impl Bits {
+    pub fn to_int(&self) -> u32 {
+        match self {
+            Bits::Four => 4,
+            Bits::Eight => 8,
+            Bits::Twelve => 12,
+            Bits::Sixteen => 16,
+        }
+    }
+
+    pub fn upper_bound(&self) -> u32 {
+        u32::pow(2, self.to_int()) - 1
+    }
+
+    pub fn suggestion_count(&self) -> usize {
+        match self {
+            Bits::Four => 3,
+            Bits::Eight => 4,
+            Bits::Twelve => 5,
+            Bits::Sixteen => 6,
+        }
+    }
+}
+
 pub struct BinaryNumbersPuzzle {
+    bits: Bits,
     current_number: u32,
     suggestions: Vec<u32>,
     selected_suggestion: Option<u32>,
@@ -215,12 +256,12 @@ pub struct BinaryNumbersPuzzle {
 }
 
 impl BinaryNumbersPuzzle {
-    pub fn new() -> Self {
+    pub fn new(bits: Bits) -> Self {
         let mut rng = rand::rng();
 
         let mut suggestions = Vec::new();
-        while suggestions.len() < 4 {
-            let num = rng.random_range(0..=255);
+        while suggestions.len() < bits.suggestion_count() {
+            let num = rng.random_range(0..=bits.upper_bound());
             if !suggestions.contains(&num) {
                 suggestions.push(num);
             }
@@ -235,6 +276,7 @@ impl BinaryNumbersPuzzle {
         let guess_result = None;
 
         Self {
+            bits,
             current_number,
             suggestions,
             time_total,
@@ -253,6 +295,19 @@ impl BinaryNumbersPuzzle {
     }
 
     pub fn current_to_binary_string(&self) -> String {
+        // let binary_string = format!(
+        //     "{:0width$b}",
+        //     self.current_number,
+        //     width = self.bits.to_int() as usize
+        // );
+        //
+        // binary_string.chars()
+        //     .collect::<Vec<_>>()
+        //     .chunks(4)
+        //     .map(|chunk| chunk.iter().collect::<String>())
+        //     .collect::<Vec<_>>()
+        //     .join(" ")
+
         format!("{:08b}", self.current_number)
     }
 
