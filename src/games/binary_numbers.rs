@@ -8,7 +8,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::prelude::{Alignment, Color, Line, Style, Stylize, Widget};
 use ratatui::prelude::Alignment::Center;
 use ratatui::text::{Span, ToSpan};
-use ratatui::widgets::{Block, Gauge, LineGauge, Paragraph};
+use ratatui::widgets::{Block, BorderType, Gauge, LineGauge, Paragraph};
 
 impl WidgetRef for BinaryNumbersGame {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
@@ -52,12 +52,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
             .split(suggestions_area);
 
         for (i, suggestion) in suggestions.iter().enumerate() {
-            let background_color = if self.selected_suggestion == Some(*suggestion) {
-                Style::default().bg(Color::DarkGray)
-            } else {
-                Style::default()
-            };
-
+            let item_is_selected = self.selected_suggestion == Some(*suggestion);
             let show_correct_number = self.guess_result.is_some();
             let is_correct_number = self.is_correct_guess(*suggestion);
 
@@ -67,9 +62,25 @@ impl WidgetRef for BinaryNumbersPuzzle {
                 Color::White
             };
 
+            let border_type = if item_is_selected {
+                BorderType::Double
+            } else {
+                BorderType::Plain
+            };
+
+            let border_color = if item_is_selected {
+                match self.guess_result {
+                    Some(GuessResult::Correct) => Color::Green,
+                    Some(GuessResult::Incorrect) => Color::Red,
+                    Some(GuessResult::Timeout) => Color::Yellow,
+                    None => Color::LightCyan,
+                }
+            } else {
+                Color::DarkGray
+            };
+
             Paragraph::new(format!("{}", suggestion))
-                .block(Block::bordered())
-                .style(background_color)
+                .block(Block::bordered().border_type(border_type).fg(border_color))
                 .fg(foreground_color)
                 .alignment(Center)
                 .render(suggestions_layout[i], buf);
@@ -77,7 +88,6 @@ impl WidgetRef for BinaryNumbersPuzzle {
 
         // render a progress bar
         Gauge::default()
-            .style(Style::reset().fg(Color::White))
             .gauge_style(Style::default().green().on_dark_gray())
             .ratio(self.time_left / self.time_total)
             .label(format!("{:.2} seconds", self.time_left)
@@ -219,6 +229,7 @@ impl BinaryNumbersGame {
     }
 }
 
+#[derive(PartialEq)]
 enum GuessResult {
     Correct,
     Incorrect,
