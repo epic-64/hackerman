@@ -116,7 +116,7 @@ impl App {
             terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
 
             if let Some(game) = &mut self.current_main_widget {
-                game.run();
+                game.run(dt.as_secs_f64());
 
                 if game.is_exit_intended() {
                     self.current_main_widget = None;
