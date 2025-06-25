@@ -83,16 +83,16 @@ pub fn parse_ascii_art(
     pixels
 }
 
-pub struct AsciiArtWidget {
-    cells: Vec<AsciiCell>,
+pub struct AsciiCells {
+    pub cells: Vec<AsciiCell>,
 }
 
-impl AsciiArtWidget {
+impl AsciiCells {
     pub fn new(cells: Vec<AsciiCell>) -> Self {
         Self { cells }
     }
 
-    pub fn from_art(
+    pub fn from(
         art: String,
         color_map_str: String,
         color_map: &HashMap<char, Color>,
@@ -101,11 +101,29 @@ impl AsciiArtWidget {
         let cells = parse_ascii_art(art, color_map_str, color_map, default_color);
         Self { cells }
     }
+
+    pub fn get_width(&self) -> u16 {
+        self.cells.iter().map(|cell| cell.x).max().unwrap_or(0)
+    }
+
+    pub fn get_height(&self) -> u16 {
+        self.cells.iter().map(|cell| cell.y).max().unwrap_or(0)
+    }
+}
+
+pub struct AsciiArtWidget {
+    cells: AsciiCells,
+}
+
+impl AsciiArtWidget {
+    pub fn new(cells: AsciiCells) -> Self {
+        Self { cells }
+    }
 }
 
 impl Widget for AsciiArtWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        for pixel in self.cells {
+        for pixel in self.cells.cells {
             let position = Position::new(pixel.x + area.x, pixel.y + area.y);
 
             if area.contains(position) {
