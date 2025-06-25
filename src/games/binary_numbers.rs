@@ -34,7 +34,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
                 Constraint::Length(6), // Result area
                 Constraint::Fill(0), // Spacer
             ])
-            .margin(2)
+            .horizontal_margin(1)
             .areas(middle);
 
         let binary_string = self.current_to_binary_string();
@@ -71,7 +71,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
                 .block(Block::bordered())
                 .style(background_color)
                 .fg(foreground_color)
-                .alignment(Alignment::Center)
+                .alignment(Center)
                 .render(suggestions_layout[i], buf);
         }
 
