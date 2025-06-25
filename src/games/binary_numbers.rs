@@ -77,6 +77,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
 
         // render a progress bar
         Gauge::default()
+            .style(Style::reset().fg(Color::White))
             .gauge_style(Style::default().green().on_dark_gray())
             .ratio(self.time_left / self.time_total)
             .label(format!("{:.2} seconds", self.time_left)
