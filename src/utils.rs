@@ -98,32 +98,40 @@ impl AsciiCells {
         color_map: &HashMap<char, Color>,
         default_color: Color,
     ) -> Self {
-        let cells = parse_ascii_art(art, color_map_str, color_map, default_color);
-        Self { cells }
+        Self { cells: parse_ascii_art(art, color_map_str, color_map, default_color) }
     }
 
     pub fn get_width(&self) -> u16 {
-        self.cells.iter().map(|cell| cell.x).max().unwrap_or(0)
+        self.cells.iter().map(|cell| cell.x).max().unwrap_or(0) + 1
     }
 
     pub fn get_height(&self) -> u16 {
-        self.cells.iter().map(|cell| cell.y).max().unwrap_or(0)
+        self.cells.iter().map(|cell| cell.y).max().unwrap_or(0) + 1
+    }
+
+    pub fn get_centered_area(&self, area: Rect) -> Rect {
+        let width = self.get_width();
+        let height = self.get_height();
+        let x_offset = (area.width.saturating_sub(width)) / 2;
+        let y_offset = (area.height.saturating_sub(height)) / 2;
+
+        Rect::new(area.x + x_offset, area.y + y_offset, width, height)
     }
 }
 
 pub struct AsciiArtWidget {
-    cells: AsciiCells,
+    collection: AsciiCells,
 }
 
 impl AsciiArtWidget {
-    pub fn new(cells: AsciiCells) -> Self {
-        Self { cells }
+    pub fn new(collection: AsciiCells) -> Self {
+        Self { collection }
     }
 }
 
 impl Widget for AsciiArtWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        for pixel in self.cells.cells {
+        for pixel in self.collection.cells {
             let position = Position::new(pixel.x + area.x, pixel.y + area.y);
 
             if area.contains(position) {
