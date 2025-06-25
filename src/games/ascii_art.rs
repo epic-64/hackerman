@@ -74,9 +74,9 @@ impl WidgetRef for AsciiArtMain {
 }
 
 impl MainScreenWidget for AsciiArtMain {
-    fn run(&mut self, dt: f64) {}
+    fn run(&mut self, _dt: f64) {}
 
-    fn handle_input(&mut self, input: KeyEvent) -> () {}
+    fn handle_input(&mut self, _input: KeyEvent) -> () {}
 
     fn is_exit_intended(&self) -> bool { self.exit_intended }
 }
