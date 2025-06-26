@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use ratatui::layout::Alignment::Center;
 use ratatui::prelude::*;
+use ratatui::widgets::{Block, Paragraph};
 
 pub trait ToDuration {
     /// Convert a number to a [`std::time::Duration`].
@@ -153,6 +155,29 @@ fn buffer_to_string(buf: &Buffer) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+pub fn vertically_center(area: Rect) -> Rect {
+    let [_, center, _] = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Fill(1),
+            Constraint::Min(1),
+            Constraint::Fill(1),
+        ])
+        .areas(area);
+    center
+}
+
+// fn render_contents: impl FnOnce(Rect, &mut Buffer)
+pub fn render_centered_block(
+    area: Rect,
+    buf: &mut Buffer,
+    render_box: impl FnOnce(Rect, &mut Buffer),
+    render_contents: impl FnOnce(Rect, &mut Buffer)
+) {
+    render_box(area, buf);
+    render_contents(vertically_center(area), buf);
 }
 
 #[cfg(test)]
