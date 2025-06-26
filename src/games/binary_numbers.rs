@@ -9,6 +9,7 @@ use ratatui::prelude::{Alignment, Color, Line, Style, Stylize, Widget};
 use ratatui::prelude::Alignment::Center;
 use ratatui::text::{Span, ToSpan};
 use ratatui::widgets::{Block, BorderType, Gauge, LineGauge, Paragraph};
+use crate::utils::{render_centered_block, vertically_center};
 
 impl WidgetRef for BinaryNumbersGame {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
@@ -40,15 +41,13 @@ impl WidgetRef for BinaryNumbersPuzzle {
         let binary_string = self.current_to_binary_string();
         let suggestions = self.suggestions();
 
-        let [_top_spacer, current_number_centered, _bottom_spacer] = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Fill(1), Constraint::Length(1), Constraint::Fill(1)])
-            .areas(current_number_area);
-
-        Block::bordered().render(current_number_area, buf);
-        Paragraph::new(format!("{}", binary_string))
-            .alignment(Center)
-            .render(current_number_centered, buf);
+        let render_block = |area: Rect, buf: &mut Buffer| {
+            Block::bordered().on_blue().render(area, buf);
+        };
+        let render_content = |area: Rect, buf: &mut Buffer| {
+            Paragraph::new(format!("{}", binary_string)).alignment(Center).on_red().render(area, buf);
+        };
+        render_centered_block(current_number_area, buf, render_block, render_content);
 
         // create sub layout for suggestions
         let suggestions_layout = Layout::default()
