@@ -1,15 +1,16 @@
-use color_eyre::owo_colors::OwoColorize;
 use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
+use crate::utils::{center, vertically_center};
+use color_eyre::owo_colors::OwoColorize;
 use crossterm::event::{KeyCode, KeyEvent};
 use rand::prelude::SliceRandom;
 use rand::Rng;
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
-use ratatui::prelude::{Alignment, Color, Line, Style, Stylize, Widget};
+use ratatui::layout::{Constraint, Direction, Flex, Layout, Margin, Rect};
 use ratatui::prelude::Alignment::Center;
+use ratatui::prelude::{Color, Line, Style, Stylize, Text, Widget};
 use ratatui::text::{Span, ToSpan};
-use ratatui::widgets::{Block, BorderType, Gauge, LineGauge, Paragraph};
-use crate::utils::{render_centered_block, vertically_center};
+use ratatui::widgets::{Block, BorderType, Gauge, Paragraph};
+use ratatui::widgets::BorderType::Double;
 
 impl WidgetRef for BinaryNumbersGame {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
@@ -28,7 +29,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Fill(0), // Spacer
-                Constraint::Length(5), // Current number area
+                Constraint::Length(3), // Current number area
                 Constraint::Length(3), // Suggestions area
                 Constraint::Length(2), // Spacer
                 Constraint::Length(3), // Progress bar area
@@ -41,13 +42,11 @@ impl WidgetRef for BinaryNumbersPuzzle {
         let binary_string = self.current_to_binary_string();
         let suggestions = self.suggestions();
 
-        let render_block = |area: Rect, buf: &mut Buffer| {
-            Block::bordered().on_blue().render(area, buf);
-        };
-        let render_content = |area: Rect, buf: &mut Buffer| {
-            Paragraph::new(format!("{}", binary_string)).alignment(Center).on_red().render(area, buf);
-        };
-        render_centered_block(current_number_area, buf, render_block, render_content);
+        let [inner] = Layout::horizontal([Constraint::Percentage(50)]).flex(Flex::Center).areas(current_number_area);
+        Block::bordered().border_type(Double).border_style(Style::default().dark_gray()).render(inner, buf);
+        let text = Text::raw(binary_string);
+        let centered = center(inner, Constraint::Length(text.width() as u16));
+        text.alignment(Center).render(centered, buf);
 
         // create sub layout for suggestions
         let suggestions_layout = Layout::default()

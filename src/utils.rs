@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use ratatui::layout::Alignment::Center;
+use ratatui::layout::Flex;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Paragraph};
 
@@ -157,27 +158,16 @@ fn buffer_to_string(buf: &Buffer) -> String {
         .join("\n")
 }
 
-pub fn vertically_center(area: Rect) -> Rect {
-    let [_, center, _] = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Fill(1),
-            Constraint::Min(1),
-            Constraint::Fill(1),
-        ])
-        .areas(area);
-    center
+pub fn center(area: Rect, horizontal: Constraint) -> Rect {
+    let [area] = Layout::horizontal([horizontal]).flex(Flex::Center).areas(area);
+    let area = vertically_center(area);
+    area
 }
 
-// fn render_contents: impl FnOnce(Rect, &mut Buffer)
-pub fn render_centered_block(
-    area: Rect,
-    buf: &mut Buffer,
-    render_box: impl FnOnce(Rect, &mut Buffer),
-    render_contents: impl FnOnce(Rect, &mut Buffer)
-) {
-    render_box(area, buf);
-    render_contents(vertically_center(area), buf);
+pub fn vertically_center(area: Rect) -> Rect {
+    let constraints = [Constraint::Fill(1), Constraint::Min(1), Constraint::Fill(1)];
+    let [_, center, _] = Layout::vertical(constraints).areas(area);
+    center
 }
 
 #[cfg(test)]
