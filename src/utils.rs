@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use color_eyre::owo_colors::OwoColorize;
+use rand::{rng, Rng};
 use ratatui::layout::Flex;
 use ratatui::prelude::*;
 

@@ -14,6 +14,7 @@ use ratatui::{prelude, DefaultTerminal};
 use std::time::Instant;
 use std::{cmp, thread};
 use color_eyre::owo_colors::OwoColorize;
+use ratatui::layout::Alignment::Center;
 use ratatui::widgets::BorderType::Double;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
@@ -274,9 +275,7 @@ impl App {
             .highlight_spacing(HighlightSpacing::WhenSelected)
             .repeat_highlight_symbol(true);
 
-        prelude::StatefulWidget::render(
-            games_list, area, buf, &mut self.main_menu.state
-        );
+        prelude::StatefulWidget::render(games_list, area, buf, &mut self.main_menu.state);
     }
 
     pub fn render_game_details(&mut self, area: Rect, buf: &mut Buffer) {
@@ -291,13 +290,12 @@ impl App {
     }
 
     pub fn render_main_widget(&mut self, area: Rect, buf: &mut Buffer) {
-        let border_style = if matches!(self.current_main_widget, Some(_)) {
-            Style::default().fg(Color::White).bold()
-        } else {
-            Style::default().fg(Color::DarkGray)
-        };
+        let is_active = self.current_main_widget.is_some();
 
-        Block::bordered().border_style(border_style).render(area, buf);
+        Block::bordered()
+            .when(is_active, |block| block.border_type(Double))
+            .when(!is_active, |block| block.dim())
+            .render(area, buf);
 
         let inner_area = area.inner(Margin {
             horizontal: 1,
