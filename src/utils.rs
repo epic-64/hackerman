@@ -1,8 +1,7 @@
 use std::collections::HashMap;
-use ratatui::layout::Alignment::Center;
+use color_eyre::owo_colors::OwoColorize;
 use ratatui::layout::Flex;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Paragraph};
 
 pub trait ToDuration {
     /// Convert a number to a [`std::time::Duration`].
@@ -168,6 +167,20 @@ pub fn vertically_center(area: Rect) -> Rect {
     let constraints = [Constraint::Fill(1), Constraint::Min(1), Constraint::Fill(1)];
     let [_, center, _] = Layout::vertical(constraints).areas(area);
     center
+}
+
+pub trait When {
+    fn when(self, condition: bool, action: impl FnOnce(Self) -> Self) -> Self where Self: Sized;
+}
+
+impl<T> When for T {
+    fn when(self, condition: bool, action: impl FnOnce(T) -> T) -> Self {
+        if condition {
+            action(self)
+        } else {
+            self
+        }
+    }
 }
 
 #[cfg(test)]

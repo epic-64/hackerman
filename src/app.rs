@@ -1,7 +1,7 @@
 use crate::games::main_screen_widget::MainScreenWidget;
 use crate::games::settings::SettingsMain;
 use crate::games::{ascii_art, binary_numbers};
-use crate::utils::ToDuration;
+use crate::utils::{ToDuration, When};
 use ascii_art::AsciiArtMain;
 use binary_numbers::BinaryNumbersGame;
 use crossterm::event;
@@ -13,6 +13,8 @@ use ratatui::widgets::{Block, Borders, HighlightSpacing, List, ListState, Paragr
 use ratatui::{prelude, DefaultTerminal};
 use std::time::Instant;
 use std::{cmp, thread};
+use color_eyre::owo_colors::OwoColorize;
+use ratatui::widgets::BorderType::Double;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 use crate::games::binary_numbers::Bits;
@@ -256,20 +258,19 @@ impl App {
     pub fn render_main_menu(&mut self, area: Rect, buf: &mut Buffer) {
         let highlight_color = Color::LightCyan;
 
-        let border_style = if self.current_main_widget.is_none() {
-            Style::default().fg(Color::White).bold()
-        } else {
-            Style::default().fg(Color::DarkGray)
-        };
+        let menu_is_active = self.current_main_widget.is_none();
 
         let binding = self.main_menu.clone();
         let menu_lines = binding.get_lines();
 
         let games_list = List::new(menu_lines)
-            .block(Block::default().borders(Borders::ALL).border_style(border_style)
-                .title("Main Menu").title_alignment(Alignment::Center))
+            .block(Block::default().borders(Borders::ALL)
+                .when(menu_is_active, |block| block.border_type(Double))
+                .title("Main Menu").title_alignment(Alignment::Center)
+            )
             .highlight_style(Style::default().fg(highlight_color).bold())
             .highlight_symbol("> ")
+            .when(!menu_is_active, |list| list.dim())
             .highlight_spacing(HighlightSpacing::WhenSelected)
             .repeat_highlight_symbol(true);
 
