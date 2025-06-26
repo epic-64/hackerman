@@ -40,10 +40,15 @@ impl WidgetRef for BinaryNumbersPuzzle {
         let binary_string = self.current_to_binary_string();
         let suggestions = self.suggestions();
 
-        Paragraph::new(format!("\n{}", binary_string))
-            .block(Block::bordered())
+        let [_top_spacer, current_number_centered, _bottom_spacer] = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Fill(1), Constraint::Length(1), Constraint::Fill(1)])
+            .areas(current_number_area);
+
+        Block::bordered().render(current_number_area, buf);
+        Paragraph::new(format!("{}", binary_string))
             .alignment(Center)
-            .render(current_number_area, buf);
+            .render(current_number_centered, buf);
 
         // create sub layout for suggestions
         let suggestions_layout = Layout::default()
