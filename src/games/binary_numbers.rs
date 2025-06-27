@@ -95,7 +95,12 @@ impl WidgetRef for BinaryNumbersPuzzle {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .areas(progress_bar_area);
 
-        Block::bordered().dark_gray().title("Status").title_alignment(Center).render(left, buf);
+        Block::bordered()
+            .dark_gray()
+            .title("Status")
+            .title_alignment(Center)
+            .title_style(Style::default().white())
+            .render(left, buf);
 
         // display the result if available
         if let Some(result) = &self.guess_result {
@@ -126,7 +131,11 @@ impl WidgetRef for BinaryNumbersPuzzle {
             .ratio(self.time_left / self.time_total)
             .label(format!("{:.2} seconds", self.time_left)
                 .to_span().style(Style::default().white()))
-            .block(Block::bordered().dark_gray().title("Time Remaining").title_alignment(Center))
+            .block(Block::bordered()
+                .dark_gray()
+                .title("Time Remaining")
+                .title_style(Style::default().white())
+                .title_alignment(Center))
             .render(right, buf);
 
         Block::bordered().dark_gray().render(result_area, buf);
