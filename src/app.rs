@@ -266,8 +266,7 @@ impl App {
 
         let games_list = List::new(menu_lines)
             .block(Block::default().borders(Borders::ALL)
-                .when(menu_is_active, |block| block.border_type(Double))
-                .title("Main Menu").title_alignment(Alignment::Center)
+                .title("Main Menu").title_alignment(Center)
             )
             .highlight_style(Style::default().fg(highlight_color).bold())
             .highlight_symbol("> ")
@@ -293,7 +292,6 @@ impl App {
         let is_active = self.current_main_widget.is_some();
 
         Block::bordered()
-            .when(is_active, |block| block.border_type(Double))
             .when(!is_active, |block| block.dim())
             .render(area, buf);
 
