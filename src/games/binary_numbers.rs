@@ -1,5 +1,5 @@
 use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
-use crate::utils::{center, vertically_center};
+use crate::utils::{center, vertically_center, When};
 use color_eyre::owo_colors::OwoColorize;
 use crossterm::event::{KeyCode, KeyEvent};
 use rand::prelude::SliceRandom;
@@ -25,15 +25,14 @@ impl WidgetRef for BinaryNumbersPuzzle {
             .constraints([Constraint::Fill(0), Constraint::Length(65), Constraint::Fill(0)])
             .areas(area);
 
-        let [_s1, current_number_area, suggestions_area, _s2, progress_bar_area, result_area, _s3] = Layout::default()
+        let [_, current_number_area, suggestions_area, progress_bar_area, result_area, _] = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Fill(0), // Spacer
                 Constraint::Length(5), // Current number area
                 Constraint::Length(3), // Suggestions area
-                Constraint::Length(2), // Spacer
-                Constraint::Length(3), // Progress bar area
-                Constraint::Length(6), // Result area
+                Constraint::Length(3), // Progress Bar / Result area
+                Constraint::Length(5), // Result area
                 Constraint::Fill(0), // Spacer
             ])
             .horizontal_margin(1)
@@ -58,12 +57,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
             let item_is_selected = self.selected_suggestion == Some(*suggestion);
             let show_correct_number = self.guess_result.is_some();
             let is_correct_number = self.is_correct_guess(*suggestion);
-
-            let foreground_color = if show_correct_number && is_correct_number {
-                Color::LightGreen
-            } else {
-                Color::White
-            };
+            let area = suggestions_layout[i];
 
             let border_type = if item_is_selected {
                 BorderType::Double
@@ -82,30 +76,33 @@ impl WidgetRef for BinaryNumbersPuzzle {
                 Color::DarkGray
             };
 
-            Paragraph::new(format!("{}", suggestion))
-                .block(Block::bordered().border_type(border_type).fg(border_color))
-                .fg(foreground_color)
+            Block::bordered()
+                .border_type(border_type)
+                .fg(border_color)
+                .render(area, buf);
+
+            let suggestion_str = format!("{suggestion}");
+            let centered = center(area, Constraint::Length(suggestion_str.len() as u16));
+            Paragraph::new(format!("{}", suggestion_str))
+                .white()
+                .when(show_correct_number && is_correct_number, |p| p.light_green().underlined())
                 .alignment(Center)
-                .render(suggestions_layout[i], buf);
+                .render(centered, buf);
         }
 
-        // render a progress bar
-        Gauge::default()
-            .gauge_style(Style::default().green().on_dark_gray())
-            .ratio(self.time_left / self.time_total)
-            .label(format!("{:.2} seconds", self.time_left)
-                .to_span().style(Style::default().white()))
-            .block(Block::bordered().title("Time Remaining").title_alignment(Center))
-            .render(progress_bar_area, buf);
+        let [left, right] = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .areas(progress_bar_area);
 
-        Block::bordered().title("Result").title_alignment(Center).render(result_area, buf);
+        Block::bordered().dark_gray().title("Status").title_alignment(Center).render(left, buf);
 
-        // render the guess result if available
+        // display the result if available
         if let Some(result) = &self.guess_result {
             let result_text = match result {
-                GuessResult::Correct => "Correct Guess!",
-                GuessResult::Incorrect => "Incorrect Guess!",
-                GuessResult::Timeout => "Time's Up!",
+                GuessResult::Correct => ":) Correct Guess!",
+                GuessResult::Incorrect => ":( Incorrect Guess!",
+                GuessResult::Timeout => ":( Time's Up!",
             };
 
             let color = match result {
@@ -116,19 +113,38 @@ impl WidgetRef for BinaryNumbersPuzzle {
 
             let text = vec![
                 Line::from(result_text.fg(color)),
-                Line::from(vec![
-                    Span::styled("Press ", Style::default().fg(Color::White)),
-                    Span::styled("Enter", Style::default().fg(Color::LightCyan)),
-                    Span::styled(" to play again or ", Style::default().fg(Color::White)),
-                    Span::styled("Esc", Style::default().fg(Color::LightCyan)),
-                    Span::styled(" to exit.", Style::default().fg(Color::White)),
-                ]),
             ];
 
             Paragraph::new(text)
                 .alignment(Center)
                 .style(Style::default().fg(color))
-                .render(result_area.inner(Margin::new(1, 2)), buf);
+                .render(center(left, Constraint::Length(20)), buf);
+        }
+
+        Gauge::default()
+            .gauge_style(Style::default().yellow())
+            .ratio(self.time_left / self.time_total)
+            .label(format!("{:.2} seconds", self.time_left)
+                .to_span().style(Style::default().white()))
+            .block(Block::bordered().dark_gray().title("Time Remaining").title_alignment(Center))
+            .render(right, buf);
+
+        Block::bordered().dark_gray().render(result_area, buf);
+
+        if self.guess_result.is_some() {
+            let text = vec![
+                Line::from(vec![
+                    Span::styled("<", Style::default().fg(Color::White)),
+                    Span::styled("Enter", Style::default().fg(Color::LightCyan)),
+                    Span::styled("> play again | <", Style::default().fg(Color::White)),
+                    Span::styled("Esc", Style::default().fg(Color::LightCyan)),
+                    Span::styled("> exit", Style::default().fg(Color::White)),
+                ]),
+            ];
+
+            Paragraph::new(text)
+                .alignment(Center)
+                .render(center(result_area, Constraint::Length(40)), buf);
         }
     }
 }
