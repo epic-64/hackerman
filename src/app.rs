@@ -64,6 +64,10 @@ pub fn handle_input(app: &mut App, input: KeyEvent) -> color_eyre::Result<()> {
             None => {}
             Some(ref game) => {}
         },
+        KeyCode::F(4) => {
+            // Debug mode toggle
+            app.debug_mode = !app.debug_mode;
+        }
         _ => {}
     }
 
@@ -145,6 +149,7 @@ impl<T: MenuEntry> StatefulMenu<T> {
 
 pub struct App {
     running: bool,
+    debug_mode: bool,
     frame_counter: u64,
     current_main_widget: Option<Box<dyn MainScreenWidget>>,
     main_menu: StatefulMenu<MainMenuEntry>,
@@ -157,6 +162,7 @@ impl App {
     pub fn new() -> Self {
         Self {
             running: true,
+            debug_mode: true,
             frame_counter: 0,
             main_menu: StatefulMenu {
                 orientation: MenuOrientation::Vertical,
@@ -307,6 +313,10 @@ impl App {
     }
 
     pub fn render_top_area(&self, area: Rect, buf: &mut Buffer) {
+        if !self.debug_mode {
+            return;
+        }
+
         let content = format!(
             "Loop Mode: {}, Selected Game: {} Frames: {}, FPS: {:.2}",
             if self.refresh_without_inputs { "Real Time" } else { "Performance" },
@@ -323,19 +333,23 @@ impl App {
     }
 
     pub fn render_bottom_area(&self, area: Rect, buf: &mut Buffer) {
-        Paragraph::new("F1: Overview, F2: Settings, Space: Pause, Ctrl+C: Quit")
+        if !self.debug_mode {
+            return;
+        }
+
+        Paragraph::new("<F1> Overview | <F2> Settings | <F4> Debug | <Space> Pause, <Ctrl+C> Quit")
             .block(Block::bordered().border_style(Style::default().dark_gray()).title("Controls"))
             .render(area, buf);
     }
 
     pub fn render_middle_area(&mut self, main_area: Rect, buf: &mut Buffer) {
-        let [left_area, right_area] = Layout::default()
+        let [left, right] = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![Constraint::Length(28), Constraint::Min(24),])
             .areas(main_area);
 
-        self.render_main_menu(left_area, buf);
-        self.render_main_widget(right_area, buf);
+        self.render_main_menu(left, buf);
+        self.render_main_widget(right, buf);
     }
 }
 
