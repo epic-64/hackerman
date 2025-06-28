@@ -318,12 +318,8 @@ impl App {
         }
 
         let content = format!(
-            "Loop Mode: {}, Selected Game: {} Frames: {}, FPS: {:.2}",
+            "Loop Mode: {}, FPS: {:.0}",
             if self.refresh_without_inputs { "Real Time" } else { "Performance" },
-            self.main_menu.state.selected()
-                .and_then(|i| self.main_menu.items.get(i))
-                .map_or("None".to_string(), |game| game.to_string()),
-            self.frame_counter,
             self.get_fps()
         );
 
