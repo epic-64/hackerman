@@ -127,10 +127,9 @@ impl WidgetRef for BinaryNumbersPuzzle {
         }
 
         Gauge::default()
-            .gauge_style(Style::default().yellow())
+            .gauge_style(Style::default().blue())
             .ratio(self.time_left / self.time_total)
-            .label(format!("{:.2} seconds", self.time_left)
-                .to_span().style(Style::default().white()))
+            .label(format!("{:.2} seconds", self.time_left).white())
             .block(Block::bordered()
                 .dark_gray()
                 .title("Time Remaining")
@@ -316,7 +315,7 @@ impl BinaryNumbersPuzzle {
         let current_number = suggestions[0];
         suggestions.shuffle(&mut rng);
 
-        let time_total = 5.0;
+        let time_total = 20.0;
         let time_left = time_total;
         let selected_suggestion = Some(suggestions[0]);
         let guess_result = None;
