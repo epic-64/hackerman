@@ -315,7 +315,7 @@ impl BinaryNumbersPuzzle {
         let current_number = suggestions[0];
         suggestions.shuffle(&mut rng);
 
-        let time_total = 20.0;
+        let time_total = 10.0;
         let time_left = time_total;
         let selected_suggestion = Some(suggestions[0]);
         let guess_result = None;
