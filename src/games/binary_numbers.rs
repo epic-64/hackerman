@@ -1,16 +1,16 @@
 use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
-use crate::utils::{center, vertically_center, When};
+use crate::utils::{center, When};
 use color_eyre::owo_colors::OwoColorize;
 use crossterm::event::{KeyCode, KeyEvent};
 use rand::prelude::SliceRandom;
 use rand::Rng;
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Constraint, Direction, Flex, Layout, Margin, Rect};
+use ratatui::layout::{Constraint, Direction, Flex, Layout, Rect};
 use ratatui::prelude::Alignment::Center;
 use ratatui::prelude::{Color, Line, Style, Stylize, Text, Widget};
-use ratatui::text::{Span, ToSpan};
-use ratatui::widgets::{Block, BorderType, Gauge, Paragraph};
+use ratatui::text::Span;
 use ratatui::widgets::BorderType::Double;
+use ratatui::widgets::{Block, BorderType, Gauge, Paragraph};
 
 impl WidgetRef for BinaryNumbersGame {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {

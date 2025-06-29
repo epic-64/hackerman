@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
+use crate::utils::{AsciiArtWidget, AsciiCells, TrimMargin};
 use crossterm::event::KeyEvent;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Widget};
-use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
-use crate::utils::{AsciiArtWidget, AsciiCells, TrimMargin};
+use std::collections::HashMap;
 
 pub struct AsciiArtMain {
     exit_intended: bool,
