@@ -1,7 +1,6 @@
 use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
 use crate::utils::{AsciiArtWidget, AsciiCells, TrimMargin};
 use crossterm::event::KeyEvent;
-use layout::Direction;
 use ratatui::prelude::*;
 use std::collections::HashMap;
 use ratatui::layout::Flex;
@@ -28,15 +27,16 @@ impl MainScreenWidget for WeatherMain {
 
 impl WidgetRef for WeatherMain {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let width = 50;
-        let height = 3;
-        let right_width = 20;
-        let left_width_min = 10;
+        let width = [Constraint::Length(50)];
+        let height = [Constraint::Length(3)];
 
-        use Constraint::*;
-        let [middle] = Layout::vertical([Length(height)]).flex(Flex::Center).areas(area);
-        let [center] = Layout::horizontal([Length(width)]).flex(Flex::Center).areas(middle);
-        let [left, right] = Layout::horizontal([Fill(left_width_min), Length(right_width)]).areas(center);
+        // create centered area with a specific width and height
+        let [middle] = Layout::vertical(height).flex(Flex::Center).areas(area);
+        let [center] = Layout::horizontal(width).flex(Flex::Center).areas(middle);
+
+        // create left and right areas in the center
+        let widths = [Constraint::Fill(10), Constraint::Length(20)];
+        let [left, right] = Layout::horizontal(widths).areas(center);
 
         let left_content = Paragraph::new(Text::from(vec![
             Line::from("Current Temp:"),
