@@ -20,21 +20,16 @@ impl WidgetRef for BinaryNumbersGame {
 
 impl WidgetRef for BinaryNumbersPuzzle {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let [_left, middle, _right] = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Fill(0), Constraint::Length(65), Constraint::Fill(0)])
-            .areas(area);
+        let [middle] = Layout::horizontal([Constraint::Length(65)]).flex(Flex::Center).areas(area);
 
-        let [_, current_number_area, suggestions_area, progress_bar_area, result_area, _] = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Fill(0), // Spacer
+        let [current_number_area, suggestions_area, progress_bar_area, result_area] =
+            Layout::vertical([
                 Constraint::Length(5), // Current number area
-                Constraint::Length(3), // Suggestions area
+                Constraint::Length(3), // Suggestion area
                 Constraint::Length(3), // Progress Bar / Result area
                 Constraint::Length(5), // Result area
-                Constraint::Fill(0), // Spacer
             ])
+            .flex(Flex::Center)
             .horizontal_margin(1)
             .areas(middle);
 
