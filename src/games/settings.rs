@@ -3,8 +3,8 @@ use crate::utils::{AsciiArtWidget, AsciiCells, TrimMargin};
 use crossterm::event::KeyEvent;
 use layout::Direction;
 use ratatui::prelude::*;
-use std::collections::HashMap;
 use ratatui::widgets::{Block, Borders};
+use std::collections::HashMap;
 use tui_big_text::{BigText, PixelSize};
 
 pub struct SettingsMain {

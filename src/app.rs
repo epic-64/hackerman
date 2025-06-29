@@ -1,25 +1,24 @@
+use crate::games::binary_numbers::Bits;
 use crate::games::main_screen_widget::MainScreenWidget;
 use crate::games::settings::SettingsMain;
+use crate::games::weather_main::WeatherMain;
 use crate::games::{ascii_art, binary_numbers};
 use crate::utils::{ToDuration, When};
 use ascii_art::AsciiArtMain;
 use binary_numbers::BinaryNumbersGame;
+use color_eyre::owo_colors::OwoColorize;
 use crossterm::event;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Rect};
+use ratatui::layout::Alignment::Center;
+use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, HighlightSpacing, List, ListState, Paragraph};
 use ratatui::{prelude, DefaultTerminal};
 use std::time::Instant;
 use std::{cmp, thread};
-use color_eyre::owo_colors::OwoColorize;
-use ratatui::layout::Alignment::Center;
-use ratatui::widgets::BorderType::Double;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
-use crate::games::binary_numbers::Bits;
-use crate::games::weather_main::WeatherMain;
 
 #[derive(EnumIter, Display, Clone, PartialEq)]
 pub enum MainMenuEntry {

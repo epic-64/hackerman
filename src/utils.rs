@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use color_eyre::owo_colors::OwoColorize;
-use rand::{rng, Rng};
+use rand::Rng;
 use ratatui::layout::Flex;
 use ratatui::prelude::*;
+use std::collections::HashMap;
 
 pub trait ToDuration {
     /// Convert a number to a [`std::time::Duration`].
