@@ -36,6 +36,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
         let binary_string = self.current_to_binary_string();
         let suggestions = self.suggestions();
 
+        // draw current number
         let [inner] = Layout::horizontal([Constraint::Percentage(100)]).flex(Flex::Center).areas(current_number_area);
         Block::bordered().border_type(Double).border_style(Style::default().dark_gray()).render(inner, buf);
         let text = Text::raw(binary_string);
