@@ -19,10 +19,12 @@ use ratatui::widgets::BorderType::Double;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 use crate::games::binary_numbers::Bits;
+use crate::games::weather_main::WeatherMain;
 
 #[derive(EnumIter, Display, Clone, PartialEq)]
 pub enum MainMenuEntry {
     Settings,
+    Weather,
     AsciiArt,
     BinaryNumbers,
     DinoJump,
@@ -33,6 +35,7 @@ impl MenuEntry for MainMenuEntry {
     fn name(&self) -> &str {
         match self {
             MainMenuEntry::Settings => "Settings",
+            MainMenuEntry::Weather => "Weather",
             MainMenuEntry::AsciiArt => "Ascii Art",
             MainMenuEntry::BinaryNumbers => "Binary Numbers",
             MainMenuEntry::DinoJump => "Dino Jump",
@@ -45,6 +48,7 @@ impl MainMenuEntry {
     pub fn get_main_screen_widget(&self) -> Option<Box<dyn MainScreenWidget>> {
         match self {
             MainMenuEntry::Settings => Some(Box::new(SettingsMain::new())),
+            MainMenuEntry::Weather => Some(Box::new(WeatherMain::new())),
             MainMenuEntry::AsciiArt => Some(Box::new(AsciiArtMain::new())),
             MainMenuEntry::BinaryNumbers => Some(Box::new(BinaryNumbersGame::new(Bits::Eight))),
             MainMenuEntry::DinoJump => None, // Dino Jump is not implemented yet
