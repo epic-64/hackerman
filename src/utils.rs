@@ -1,5 +1,3 @@
-use color_eyre::owo_colors::OwoColorize;
-use rand::Rng;
 use ratatui::layout::Flex;
 use ratatui::prelude::*;
 use std::collections::HashMap;
