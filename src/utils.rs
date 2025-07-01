@@ -184,36 +184,62 @@ impl<T> When for T {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::utils::TrimMargin;
 
     #[test]
-    fn test_annoying_default_behavior() {
+    fn annoying_default_behavior() {
         let input = "
-            asdf
+            This is a test string.
+              It has multiple lines.
+
+            Some lines are indented.
         ";
 
-        let expected = "\n            asdf\n        ";
+        let expected = vec![
+            "",
+            "            This is a test string.",
+            "              It has multiple lines.",
+            "",
+            "            Some lines are indented.",
+            "        "
+        ].join("\n");
 
         assert_eq!(expected, input);
     }
 
     #[test]
-    fn test_nice_basic() {
+    fn nice_trim() {
         let input = "
             This is a test string.
-            It has multiple lines.
+              It has multiple lines.
+
             Some lines are indented.
-        ";
+        ".nice();
 
         let expected = vec![
             "This is a test string.",
-            "It has multiple lines.",
+            "  It has multiple lines.",
+            "",
             "Some lines are indented."
         ].join("\n");
 
-        let result = input.nice();
+        assert_eq!(expected, input);
+    }
+    
+    #[test]
+    fn nice_interpolated_trim() {
+        let name = "Alice";
+        let input = format!("
+            Hello {name},
+              nice to meet you.
+        ").nice();
 
-        assert_eq!(expected, result);
+        let expected = vec![
+            "Hello Alice,",
+            "  nice to meet you."
+        ].join("\n");
+
+        assert_eq!(expected, input);
     }
 
     #[test]
