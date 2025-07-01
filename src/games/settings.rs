@@ -1,11 +1,9 @@
 use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
-use crate::utils::{AsciiArtWidget, AsciiCells, TrimMargin};
+use crate::utils::{parse_ascii_art, AsciiArtWidget, AsciiCells, TrimMargin};
 use crossterm::event::KeyEvent;
-use layout::Direction;
+use ratatui::layout::Flex::Center;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders};
 use std::collections::HashMap;
-use tui_big_text::{BigText, PixelSize};
 
 pub struct SettingsMain {
     exit_intended: bool,
@@ -27,79 +25,54 @@ impl MainScreenWidget for SettingsMain {
 
 impl WidgetRef for SettingsMain {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let [top, bottom] = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(16), Constraint::Percentage(80)])
-            .margin(1)
+        let [top, bottom] = Layout::vertical([Constraint::Length(6), Constraint::Fill(20)])
             .areas(area);
 
-        Block::default().borders(Borders::ALL).render(top, buf);
-        Block::default().borders(Borders::ALL).render(bottom, buf);
+        //Block::default().borders(Borders::ALL).render(top, buf);
+        //Block::default().borders(Borders::ALL).render(bottom, buf);
 
-        let [top_left, top_right] = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Length(30), Constraint::Fill(1)])
-            .spacing(1)
-            .areas(top);
-
-        render_art(top_left, buf);
-        render_big_text(top_right, buf);
+        render_big_text(top, buf);
     }
 }
 
-fn render_art(area: Rect, buf: &mut Buffer) {
-    let art = r"
-            ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-            ⠀⠀⠀⢀⣴⣾⣦⣀⣀⣠⣿⣿⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-            ⠀⠀⠀⠈⢻⣿⣿⣿⣿⣿⣿⣿⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-            ⠀⠀⠀⢀⣾⣿⡿⠋⠁⠈⠙⢿⣿⣷⣶⣶⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-            ⠀⢸⣿⣿⣿⣿⡇⠀⠀⠀⠀⢸⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-            ⠀⠘⠛⠛⠻⣿⣷⣤⣀⣀⣴⣿⣿⠏⢀⣀⠀⠀⠀⠀⣾⣿⣿⡇⠀⠀⠀⠀⣀⠀
-            ⠀⠀⠀⠀⠀⣾⣿⣿⡿⠿⢿⣿⣿⣷⣿⣿⣧⠀⣀⣀⣿⣿⣿⣇⣀⡀⠀⣼⣿⠀
-            ⠀⠀⠀⠀⠸⠿⣿⡿⠀⠀⠀⠻⠿⠋⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⠀⠁⢀⣴⣤⣀⢀⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⠀⠀⠺⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠿⠿⠿⣿⣿⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣿⣿⣿⣿⣿⣿⣿⡟⠀⠀⠀⠀⠀⠈⢻⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⠘⠛⠛⠻⣿⣿⣿⣿⣿⣿⣿⣿⡄⠀⠀⠀⠀⠀⠀⣠⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠛⠛⠛⠛⠛⠛⠛⠛⠂⠀⠀⠀⠀⠒⠛⠛⠛⠛⠀
-        ".nice();
-
-    let foreground_colors = r"
-            ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-            ⠀⠀⠀⢀⣴⣾⣦⣀⣀⣠⣿⣿⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-            ⠀⠀⠀⠈⢻⣿⣿⣿⣿⣿⣿⣿⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-            ⠀⠀⠀⢀⣾⣿⡿⠋⠁⠈⠙⢿⣿⣷⣶⣶⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-            ⠀⢸⣿⣿⣿⣿⡇⠀⠀⠀⠀⢸⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-            ⠀⠘⠛⠛⠻⣿⣷⣤⣀⣀⣴⣿⣿⠏⢀⣀⠀⠀⠀⠀⣾⣿⣿⡇⠀⠀⠀⠀⣀⠀
-            ⠀⠀⠀⠀⠀⣾⣿⣿⡿⠿⢿⣿⣿⣷⣿⣿⣧⠀⣀⣀⣿⣿⣿⣇⣀⡀⠀⣼⣿⠀
-            ⠀⠀⠀⠀⠸⠿⣿⡿⠀⠀⠀⠻⠿⠋⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⠀⠁⢀⣴⣤⣀⢀⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⠀⠀⠺⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠿⠿⠿⣿⣿⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣿⣿⣿⣿⣿⣿⣿⡟⠀⠀⠀⠀⠀⠈⢻⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⠘⠛⠛⠻⣿⣿⣿⣿⣿⣿⣿⣿⡄⠀⠀⠀⠀⠀⠀⣠⣿⣿⣿⠀
-            ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠛⠛⠛⠛⠛⠛⠛⠛⠂⠀⠀⠀⠀⠒⠛⠛⠛⠛⠀
-        ".nice();
-
-    let color_map = HashMap::from([]);
-
-    let cells = AsciiCells::from(art, foreground_colors, &color_map, Color::Blue);
-
-    AsciiArtWidget::new(cells).render(area, buf);
-}
-
 fn render_big_text(area: Rect, buf: &mut Buffer) {
-    let big_text = BigText::builder()
-        .pixel_size(PixelSize::Sextant)
-        .style(Style::new().white())
-        .lines(vec![
-            "Settings".into(),
-            "~~~~~~~".into(),
-        ])
-        .build();
+    let art = "
+        ███████╗███████╗████████╗████████╗██╗███╗   ██╗ ██████╗ ███████╗
+        ██╔════╝██╔════╝╚══██╔══╝╚══██╔══╝██║████╗  ██║██╔════╝ ██╔════╝
+        ███████╗█████╗     ██║      ██║   ██║██╔██╗ ██║██║  ███╗███████╗
+        ╚════██║██╔══╝     ██║      ██║   ██║██║╚██╗██║██║   ██║╚════██║
+        ███████║███████╗   ██║      ██║   ██║██║ ╚████║╚██████╔╝███████║
+        ╚══════╝╚══════╝   ╚═╝      ╚═╝   ╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝
+    ".nice();
 
-    big_text.render(area, buf);
+    let colors = "
+        ████R██╗███████╗█████B██╗████████╗██╗███╗   ██╗ ██C███╗ ███████╗
+        ██╔════╝██╔════╝╚══██╔══╝╚══██╔══╝██║████╗  ██║██╔════╝ ██╔════╝
+        ███████╗█G███╗     ██║      ██║   █P║██╔██╗ ██║██║  ███╗██R████╗
+        ╚════██║██╔══╝     ██║      Y█║   ██║██║╚██╗██║██║   ██║╚════██║
+        ███████║███████╗   ██║      ██║   ██║██║ ╚█G██║╚██████╔╝███████║
+        ╚══════╝╚══════╝   ╚═╝      ╚═╝   ╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝
+    ".nice();
+
+    let color_map = HashMap::from([
+        ('█', Color::White),
+        ('R', Color::LightRed),
+        ('G', Color::LightGreen),
+        ('B', Color::LightBlue),
+        ('Y', Color::LightYellow),
+        ('P', Color::LightMagenta),
+        ('C', Color::LightCyan),
+        ('W', Color::White),
+        (' ', Color::Reset),
+    ]);
+
+    let default_color = Color::LightBlue;
+
+    let cells = parse_ascii_art(art.to_string(), colors.to_string(), &color_map, default_color);
+    let cells = AsciiCells::new(cells);
+    let width = cells.get_width();
+    let ascii_widget = AsciiArtWidget::new(cells);
+
+    let [centered] = Layout::horizontal([Constraint::Length(width)]).flex(Center).areas(area);
+    ascii_widget.render(centered, buf);
 }
