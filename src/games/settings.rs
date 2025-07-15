@@ -1,7 +1,8 @@
 use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
-use crate::utils::{AsciiArtWidget, AsciiCells, TrimMargin};
+use crate::utils::{AsciiArtWidget, AsciiCells};
 use crossterm::event::KeyEvent;
 use layout::Direction;
+use nice_trim::NiceTrim;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders};
 use std::collections::HashMap;

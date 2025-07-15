@@ -1,6 +1,7 @@
 use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
-use crate::utils::{AsciiArtWidget, AsciiCells, TrimMargin};
+use crate::utils::{AsciiArtWidget, AsciiCells};
 use crossterm::event::KeyEvent;
+use nice_trim::NiceTrim;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Widget};
