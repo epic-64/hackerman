@@ -340,6 +340,7 @@ version = "0.1.0"
 dependencies = [
  "color-eyre",
  "crossterm 0.29.0",
+ "nice-trim",
  "pretty_assertions",
  "rand",
  "ratatui",
@@ -501,6 +502,12 @@ dependencies = [
  "wasi 0.11.1+wasi-snapshot-preview1",
  "windows-sys 0.59.0",
 ]
+
+[[package]]
+name = "nice-trim"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4db4ff5343d4d1a8cf4206a29a8af6b79145381aa67c567db40d89f9d1caf90a"
 
 [[package]]
 name = "object"
