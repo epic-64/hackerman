@@ -1,9 +1,10 @@
 use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
-use crate::utils::{AsciiArtWidget, AsciiCells, TrimMargin};
+use crate::utils::{AsciiArtWidget, AsciiCells};
 use crossterm::event::KeyEvent;
 use ratatui::layout::Flex::Center;
 use ratatui::prelude::*;
 use std::collections::HashMap;
+use nice_trim::NiceTrim;
 
 pub struct SettingsMain {
     exit_intended: bool,
