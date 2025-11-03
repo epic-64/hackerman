@@ -76,7 +76,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
             Layout::vertical([
                 Constraint::Length(5), // Current number area
                 Constraint::Length(3), // Suggestion area
-                Constraint::Length(3), // Progress Bar / Result area
+                Constraint::Length(5), // Progress Bar / Result area (increased from 3 for gauge space)
                 Constraint::Length(5), // Result / instructions area
             ])
             .flex(Flex::Center)
@@ -189,18 +189,34 @@ impl WidgetRef for BinaryNumbersPuzzle {
             Color::Red
         };
 
+        // Replace previous split layout: keep everything inside a single bordered block and remove percent label
+        let time_block = Block::bordered()
+            .dark_gray()
+            .title("Time Remaining")
+            .title_style(Style::default().white())
+            .title_alignment(Center);
+        let inner_time = time_block.inner(right);
+        time_block.render(right, buf);
+
+        // Vertical layout inside the time block interior: gauge line + text line
+        let [gauge_line, time_line] = Layout::vertical([
+            Constraint::Length(1), // gauge occupies one row
+            Constraint::Length(1), // time text occupies one row
+        ])
+        .areas(inner_time);
+
         Gauge::default()
             .gauge_style(Style::default().fg(gauge_color))
             .ratio(ratio)
-            .label(format!("{:.2} seconds", self.time_left).white())
-            .block(
-                Block::bordered()
-                    .dark_gray()
-                    .title("Time Remaining")
-                    .title_style(Style::default().white())
-                    .title_alignment(Center),
-            )
-            .render(right, buf);
+            .label("") // empty label to suppress default percent display
+            .render(gauge_line, buf);
+
+        Paragraph::new(Line::from(Span::styled(
+            format!("{:.2} seconds left", self.time_left),
+            Style::default().fg(gauge_color),
+        )))
+        .alignment(Center)
+        .render(time_line, buf);
 
         Block::bordered().dark_gray().render(result_area, buf);
 
