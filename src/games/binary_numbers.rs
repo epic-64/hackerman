@@ -12,6 +12,8 @@ use ratatui::text::Span;
 use ratatui::widgets::BorderType::Double;
 use ratatui::widgets::{Block, BorderType, Gauge, Paragraph};
 
+const MAX_LIVES: u32 = 5; // maximum lives attainable via streak bonuses
+
 impl WidgetRef for BinaryNumbersGame {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
         // Create a scoreboard area on top and pass remaining area to puzzle
@@ -30,17 +32,38 @@ impl WidgetRef for BinaryNumbersGame {
             .dark_gray()
             .render(scoreboard_area, buf);
 
+        let hearts = self.lives_hearts();
         let info_line = Line::from(vec![
             Span::styled(format!("Score: {}  ", self.score), Style::default().fg(Color::Green)),
             Span::styled(format!("Streak: {}  ", self.streak), Style::default().fg(Color::Cyan)),
             Span::styled(format!("Rounds: {}  ", self.rounds), Style::default().fg(Color::Magenta)),
+            Span::styled(format!("Lives: {} ({}/{})  ", hearts, self.lives, MAX_LIVES), Style::default().fg(Color::Red)),
             Span::styled(format!("Bits: {}", self.bits.to_int()), Style::default().fg(Color::Yellow)),
         ]);
         Paragraph::new(info_line.clone())
             .alignment(Center)
             .render(center(scoreboard_area, Constraint::Length(info_line.width() as u16)), buf);
 
-        // Render puzzle in remaining area
+        if self.game_over {
+            // Render a game over screen instead of puzzle
+            let block = Block::bordered()
+                .title("Game Over")
+                .title_alignment(Center)
+                .border_type(Double)
+                .title_style(Style::default().fg(Color::Red));
+            block.render(puzzle_area, buf);
+            let lines = vec![
+                Line::from(Span::styled(format!("Final Score: {}", self.score), Style::default().fg(Color::Green))),
+                Line::from(Span::styled(format!("Rounds Played: {}", self.rounds), Style::default().fg(Color::Magenta))),
+                Line::from(Span::styled("Press Enter to restart or Esc to exit", Style::default().fg(Color::Yellow))),
+            ];
+            Paragraph::new(lines)
+                .alignment(Center)
+                .render(center(puzzle_area, Constraint::Length(40)), buf);
+            return;
+        }
+
+        // Render puzzle in remaining area when not game over
         self.puzzle.render_ref(puzzle_area, buf);
     }
 }
@@ -222,10 +245,13 @@ pub struct BinaryNumbersGame {
     streak: u32,
     rounds: u32,
     puzzle_resolved: bool, // prevents double finalization
+    lives: u32,            // NEW: lives remaining
+    game_over: bool,       // NEW: game over state
 }
 
 impl MainScreenWidget for BinaryNumbersGame {
     fn run(&mut self, dt: f64) {
+        if self.game_over { return; }
         self.puzzle.run(dt);
         if self.puzzle.guess_result.is_some() && !self.puzzle_resolved {
             self.finalize_round();
@@ -246,6 +272,8 @@ impl BinaryNumbersGame {
             streak: 0,
             rounds: 0,
             puzzle_resolved: false,
+            lives: 3, // start with 3 lives
+            game_over: false,
         }
     }
 
@@ -255,6 +283,12 @@ impl BinaryNumbersGame {
 }
 
 impl BinaryNumbersGame {
+    pub fn lives_hearts(&self) -> String {
+        let full = "♥".repeat(self.lives as usize);
+        let empty = "·".repeat((MAX_LIVES - self.lives) as usize);
+        format!("{}{}", full, empty)
+    }
+
     fn finalize_round(&mut self) {
         if let Some(result) = self.puzzle.guess_result {
             self.rounds += 1;
@@ -262,19 +296,46 @@ impl BinaryNumbersGame {
                 GuessResult::Correct => {
                     self.streak += 1;
                     self.score += 10 + (self.streak * 2);
+                    // Award extra life every 5 streaks (up to MAX_LIVES)
+                    if self.streak % 5 == 0 && self.lives < MAX_LIVES {
+                        self.lives += 1;
+                    }
                 }
-                GuessResult::Incorrect | GuessResult::Timeout => { self.streak = 0; }
+                GuessResult::Incorrect | GuessResult::Timeout => {
+                    self.streak = 0;
+                    if self.lives > 0 { self.lives -= 1; }
+                }
             }
+            if self.lives == 0 { self.game_over = true; }
             self.puzzle_resolved = true;
         }
     }
 
     pub fn handle_game_input(&mut self, input: KeyEvent) {
-        if input.code == KeyCode::Esc { self.exit_intended = true };
+        if input.code == KeyCode::Esc { self.exit_intended = true; return; };
+        if self.game_over { self.handle_game_over_input(input); return; }
         match self.puzzle.guess_result {
             None => self.handle_no_result_yet(input),
             Some(_) => self.handle_result_available(input),
         }
+    }
+
+    fn handle_game_over_input(&mut self, input: KeyEvent) {
+        match input.code {
+            KeyCode::Enter => { self.reset_game_state(); }
+            KeyCode::Esc => { self.exit_intended = true; }
+            _ => {}
+        }
+    }
+
+    fn reset_game_state(&mut self) {
+        self.score = 0;
+        self.streak = 0;
+        self.rounds = 0;
+        self.lives = 3;
+        self.game_over = false;
+        self.puzzle_resolved = false;
+        self.puzzle = Self::init_puzzle(self.bits.clone(), 0);
     }
 
     fn handle_no_result_yet(&mut self, input: KeyEvent) {
