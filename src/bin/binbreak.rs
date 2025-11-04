@@ -76,7 +76,7 @@ fn handle_start_input(state: &mut StartMenuState, key: KeyEvent) -> Option<AppSt
 
 fn render_start_screen(state: &mut StartMenuState, area: Rect, buf: &mut Buffer) {
     let [splash_area, title_area, list_area, info_area] = Layout::vertical([
-        Constraint::Length(8),
+        Constraint::Length(9),
         Constraint::Length(3),
         Constraint::Min(5),
         Constraint::Length(4),
@@ -184,6 +184,7 @@ fn render_big_text(area: Rect, buf: &mut Buffer) {
  MM     M8 MM   MM   MM     M8 MM    8M""""""  ,pm9MM    MM;Mm
  MM.   ,M9 MM   MM   MM.   ,M9 MM    YM.    , 8M   MM    MM `Mb.
  P^YbmdP'.JMML. `MbmoP^YbmdP'.JMML.   `Mbmmd' `Moo9^Yo..JMML. YA.
+   142    151   164     142   162       145     141       153
     "#.nice();
 
     let colors = r#"
@@ -195,6 +196,7 @@ fn render_big_text(area: Rect, buf: &mut Buffer) {
  MM     M8 MM   MM   MM     M8 MM    8M""""""  ,pm9MM    MM;Mm
  MM.   ,M9 MM   MM   MM.   ,M9 MM    YM.    , 8M   MM    MM `Mb.
  P^YbmdP'.JMML. `MbmoP^YbmdP'.JMML.   `Mbmmd' `Moo9^Yo..JMML. YA.
+   142    151   164     142   162       145     141       153
     "#.nice();
 
     let color_map = HashMap::from([
