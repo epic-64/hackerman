@@ -61,7 +61,6 @@ impl WidgetRef for BinaryNumbersPuzzle {
 
         // Render stats bar integrated at top
         Block::bordered()
-            .title("Binary Numbers")
             .title_alignment(Center)
             .dark_gray()
             .render(stats_area, buf);
