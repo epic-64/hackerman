@@ -4,7 +4,7 @@ use hackerman::games::main_screen_widget::MainScreenWidget;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, List, ListState, Paragraph};
 use std::time::Instant;
-use std::{env, thread};
+use std::thread;
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
