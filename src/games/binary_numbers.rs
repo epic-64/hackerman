@@ -10,6 +10,9 @@ use ratatui::prelude::{Color, Line, Style, Stylize, Widget};
 use ratatui::text::Span;
 use ratatui::widgets::BorderType::Double;
 use ratatui::widgets::{Block, BorderType, Gauge, Paragraph};
+use std::collections::HashMap;
+use std::fs::{File};
+use std::io::{Read, Write};
 
 // NEW: snapshot of game stats passed into puzzle for integrated layout
 struct StatsSnapshot {
@@ -22,6 +25,8 @@ struct StatsSnapshot {
     bits: Bits,
     hearts: String,
     game_over: bool,
+    prev_high_score: u32,      // NEW: previous high score for this mode
+    new_high_score: bool,      // NEW: whether current score is a new high score
 }
 
 impl WidgetRef for BinaryNumbersGame {
@@ -86,9 +91,13 @@ impl WidgetRef for BinaryNumbersPuzzle {
                 block.render(combined_rect, buf);
                 let mut lines = vec![
                     Line::from(Span::styled(format!("Final Score: {}", stats.score), Style::default().fg(Color::Green))),
+                    Line::from(Span::styled(format!("Previous High: {}", stats.prev_high_score), Style::default().fg(Color::Yellow))),
                     Line::from(Span::styled(format!("Rounds Played: {}", stats.rounds), Style::default().fg(Color::Magenta))),
                     Line::from(Span::styled(format!("Max Streak: {}", stats.max_streak), Style::default().fg(Color::Cyan))),
                 ];
+                if stats.new_high_score {
+                    lines.insert(1, Line::from(Span::styled("NEW HIGH SCORE!", Style::default().fg(Color::LightGreen).bold())));
+                }
                 if stats.lives == 0 {
                     lines.push(Line::from(Span::styled("You lost all your lives.", Style::default().fg(Color::Red))));
                 }
@@ -263,6 +272,9 @@ pub struct BinaryNumbersGame {
     max_lives: u32, // NEW: configurable max lives
     game_over: bool,
     max_streak: u32,
+    high_scores: HighScores,           // NEW: persistent high scores
+    prev_high_score_for_display: u32,  // NEW: previous high score captured at game over
+    new_high_score_reached: bool,      // NEW: flag if new high score achieved
 }
 
 impl MainScreenWidget for BinaryNumbersGame {
@@ -288,6 +300,8 @@ impl MainScreenWidget for BinaryNumbersGame {
 impl BinaryNumbersGame {
     pub fn new(bits: Bits) -> Self { Self::new_with_max_lives(bits, 5) }
     pub fn new_with_max_lives(bits: Bits, max_lives: u32) -> Self {
+        let hs = HighScores::load();
+        let starting_prev = hs.get(bits.to_int());
         Self {
             bits: bits.clone(),
             puzzle: Self::init_puzzle(bits.clone(), 0),
@@ -296,10 +310,13 @@ impl BinaryNumbersGame {
             streak: 0,
             rounds: 0,
             puzzle_resolved: false,
-            lives: max_lives.min(3), // start lives: min(requested max, default 3)
+            lives: max_lives.min(3),
             max_lives,
             game_over: false,
             max_streak: 0,
+            high_scores: hs,
+            prev_high_score_for_display: starting_prev,
+            new_high_score_reached: false,
         }
     }
 
@@ -328,10 +345,7 @@ impl BinaryNumbersGame {
                     let points = 10 + streak_bonus;
                     self.score += points;
                     self.puzzle.last_points_awarded = points;
-                    // Award extra life every 5 streaks (up to max_lives)
-                    if self.streak % 5 == 0 && self.lives < self.max_lives {
-                        self.lives += 1;
-                    }
+                    if self.streak % 5 == 0 && self.lives < self.max_lives { self.lives += 1; }
                 }
                 GuessResult::Incorrect | GuessResult::Timeout => {
                     self.streak = 0;
@@ -339,7 +353,20 @@ impl BinaryNumbersGame {
                     if self.lives > 0 { self.lives -= 1; }
                 }
             }
-            if self.lives == 0 { self.game_over = true; }
+            // NEW: immediate high score update if surpassed
+            let bits_int = self.bits.to_int();
+            let prev = self.high_scores.get(bits_int);
+            if self.score > prev {
+                if !self.new_high_score_reached { // first time surpassing this run: capture previous for display
+                    self.prev_high_score_for_display = prev;
+                }
+                self.high_scores.update(bits_int, self.score);
+                self.new_high_score_reached = true;
+                let _ = self.high_scores.save();
+            }
+            if self.lives == 0 {
+                self.game_over = true;
+            }
             self.puzzle_resolved = true;
         }
     }
@@ -365,11 +392,12 @@ impl BinaryNumbersGame {
         self.score = 0;
         self.streak = 0;
         self.rounds = 0;
-        // reset to min(3, max_lives) so reduced max doesn't keep higher start
         self.lives = self.max_lives.min(3);
         self.game_over = false;
         self.puzzle_resolved = false;
         self.max_streak = 0;
+        self.prev_high_score_for_display = self.high_scores.get(self.bits.to_int()); // reset display previous
+        self.new_high_score_reached = false;
         self.puzzle = Self::init_puzzle(self.bits.clone(), 0);
         self.refresh_stats_snapshot();
     }
@@ -452,6 +480,8 @@ impl BinaryNumbersGame {
             bits: self.bits.clone(),
             hearts: self.lives_hearts(),
             game_over: self.game_over,
+            prev_high_score: self.prev_high_score_for_display,
+            new_high_score: self.new_high_score_reached,
         });
     }
 }
@@ -582,3 +612,47 @@ impl Widget for &mut BinaryNumbersGame {
         self.render_ref(area, buf);
     }
 }
+
+// NEW: HighScores management
+struct HighScores { scores: HashMap<u32, u32>, }
+
+impl HighScores {
+    const FILE: &'static str = "binbreak_highscores.txt";
+
+    fn empty() -> Self { Self { scores: HashMap::new() } }
+
+    fn load() -> Self {
+        let mut hs = Self::empty();
+        if let Ok(mut file) = File::open(Self::FILE) {
+            let mut contents = String::new();
+            if file.read_to_string(&mut contents).is_ok() {
+                for line in contents.lines() {
+                    if let Some((k,v)) = line.split_once('=') {
+                        if let (Ok(bits), Ok(score)) = (k.trim().parse::<u32>(), v.trim().parse::<u32>()) {
+                            hs.scores.insert(bits, score);
+                        }
+                    }
+                }
+            }
+        }
+        hs
+    }
+
+    fn save(&self) -> std::io::Result<()> {
+        let mut data = String::new();
+        for bits in [4u32,8u32,12u32,16u32] { // maintain order
+            let val = self.get(bits);
+            data.push_str(&format!("{}={}\n", bits, val));
+        }
+        let mut file = File::create(Self::FILE)?;
+        file.write_all(data.as_bytes())
+    }
+
+    fn get(&self, bits: u32) -> u32 { *self.scores.get(&bits).unwrap_or(&0) }
+
+    fn update(&mut self, bits: u32, score: u32) { self.scores.insert(bits, score); }
+}
+
+// NEW: public helper for external modules (e.g., start screen) to read current high score for a bits mode
+pub fn get_high_score(bits: Bits) -> u32 { HighScores::load().get(bits.to_int()) }
+
