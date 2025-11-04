@@ -6,6 +6,31 @@ use ratatui::widgets::{Block, Borders, List, ListState, Paragraph};
 use std::time::Instant;
 use std::{env, thread};
 
+fn main() -> color_eyre::Result<()> {
+    color_eyre::install()?;
+    // Optional: allow bypass start screen via CLI arg bits
+    if let Some(arg) = env::args().nth(1) {
+        if ["4", "8", "12", "16"].contains(&arg.as_str()) {
+            let bits = match arg.as_str() {
+                "4" => Bits::Four,
+                "8" => Bits::Eight,
+                "12" => Bits::Twelve,
+                "16" => Bits::Sixteen,
+                _ => Bits::Eight,
+            };
+            let mut game = BinaryNumbersGame::new(bits);
+            let mut terminal = ratatui::init();
+            run_direct_game(&mut terminal, &mut game)?;
+            ratatui::restore();
+            return Ok(());
+        }
+    }
+    let mut terminal = ratatui::init();
+    let result = run_app(&mut terminal);
+    ratatui::restore();
+    result
+}
+
 // Start menu state
 struct StartMenuState {
     items: Vec<(String, Bits)>,
@@ -157,31 +182,6 @@ fn handle_game_key(game: &mut BinaryNumbersGame, key: KeyEvent) {
         }
         _ => game.handle_game_input(key),
     }
-}
-
-fn main() -> color_eyre::Result<()> {
-    color_eyre::install()?;
-    // Optional: allow bypass start screen via CLI arg bits
-    if let Some(arg) = env::args().nth(1) {
-        if ["4", "8", "12", "16"].contains(&arg.as_str()) {
-            let bits = match arg.as_str() {
-                "4" => Bits::Four,
-                "8" => Bits::Eight,
-                "12" => Bits::Twelve,
-                "16" => Bits::Sixteen,
-                _ => Bits::Eight,
-            };
-            let mut game = BinaryNumbersGame::new(bits);
-            let mut terminal = ratatui::init();
-            run_direct_game(&mut terminal, &mut game)?;
-            ratatui::restore();
-            return Ok(());
-        }
-    }
-    let mut terminal = ratatui::init();
-    let result = run_app(&mut terminal);
-    ratatui::restore();
-    result
 }
 
 // Fallback direct game loop if bits supplied via CLI
