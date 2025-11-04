@@ -24,7 +24,7 @@ struct StatsSnapshot {
     max_lives: u32,
     bits: Bits,
     hearts: String,
-    game_over: bool,
+    game_state: GameState, // NEW: overall game state replaces old boolean flags
     prev_high_score: u32,      // NEW: previous high score for this mode
     new_high_score: bool,      // NEW: whether current score is a new high score
 }
@@ -81,7 +81,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
                 .render(center(stats_area, Constraint::Length(info_line.width() as u16)), buf);
 
             // If game over, render game over block occupying the remaining area and return early
-            if stats.game_over {
+            if stats.game_state == GameState::GameOver {
                 let combined_rect = Rect { x: current_number_area.x, y: current_number_area.y, width: current_number_area.width, height: current_number_area.height + suggestions_area.height + progress_bar_area.height + result_area.height };
                 let block = Block::bordered()
                     .title("Game Over")
@@ -259,27 +259,22 @@ pub struct BinaryNumbersGame {
     puzzle_resolved: bool,
     lives: u32,
     max_lives: u32, // NEW: configurable max lives
-    game_over: bool,
+    game_state: GameState, // NEW
     max_streak: u32,
     high_scores: HighScores,           // NEW: persistent high scores
     prev_high_score_for_display: u32,  // NEW: previous high score captured at game over
     new_high_score_reached: bool,      // NEW: flag if new high score achieved
-    game_over_revealed: bool,          // NEW: player has pressed Enter to reveal summary
 }
+
+#[derive(Copy, Clone, PartialEq)]
+enum GameState { Active, Result, PendingGameOver, GameOver }
 
 impl MainScreenWidget for BinaryNumbersGame {
     fn run(&mut self, dt: f64) {
-        // refresh snapshot before puzzle runs so timeout status uses latest lives/streak
         self.refresh_stats_snapshot();
-
-        if self.game_over {
-            return;
-        }
-
+        if self.game_state == GameState::GameOver { return; }
         self.puzzle.run(dt);
         if self.puzzle.guess_result.is_some() && !self.puzzle_resolved { self.finalize_round(); }
-
-        // refresh again after potential finalize so updated score/streak show immediately
         self.refresh_stats_snapshot();
     }
 
@@ -302,12 +297,11 @@ impl BinaryNumbersGame {
             puzzle_resolved: false,
             lives: max_lives.min(3),
             max_lives,
-            game_over: false, // retains meaning: summary revealed
+            game_state: GameState::Active,
             max_streak: 0,
             high_scores: hs,
             prev_high_score_for_display: starting_prev,
             new_high_score_reached: false,
-            game_over_revealed: false,
         }
     }
 
@@ -344,7 +338,7 @@ impl BinaryNumbersGame {
                     if self.lives > 0 { self.lives -= 1; }
                 }
             }
-            // immediate high score update if surpassed
+            // high score update
             let bits_int = self.bits.to_int();
             let prev = self.high_scores.get(bits_int);
             if self.score > prev {
@@ -353,16 +347,19 @@ impl BinaryNumbersGame {
                 self.new_high_score_reached = true;
                 let _ = self.high_scores.save();
             }
-            // DEFER game over reveal: do not set game_over here
-            // lives == 0 indicates pending game over, shown after Enter
-            if self.lives == 0 { self.game_over_revealed = false; }
+            // set state after round resolution
+            if self.lives == 0 {
+                self.game_state = GameState::PendingGameOver; // defer summary until Enter
+            } else {
+                self.game_state = GameState::Result;
+            }
             self.puzzle_resolved = true;
         }
     }
 
     pub fn handle_game_input(&mut self, input: KeyEvent) {
-        if input.code == KeyCode::Esc { self.exit_intended = true; return; };
-        if self.game_over { self.handle_game_over_input(input); return; }
+        if input.code == KeyCode::Esc { self.exit_intended = true; return; }
+        if self.game_state == GameState::GameOver { self.handle_game_over_input(input); return; }
         match self.puzzle.guess_result {
             None => self.handle_no_result_yet(input),
             Some(_) => self.handle_result_available(input),
@@ -382,12 +379,12 @@ impl BinaryNumbersGame {
         self.streak = 0;
         self.rounds = 0;
         self.lives = self.max_lives.min(3);
-        self.game_over = false;
-        self.game_over_revealed = false;
+        self.game_state = GameState::Active;
         self.max_streak = 0;
-        self.prev_high_score_for_display = self.high_scores.get(self.bits.to_int()); // reset display previous
+        self.prev_high_score_for_display = self.high_scores.get(self.bits.to_int());
         self.new_high_score_reached = false;
         self.puzzle = Self::init_puzzle(self.bits.clone(), 0);
+        self.puzzle_resolved = false;
         self.refresh_stats_snapshot();
     }
 
@@ -442,13 +439,19 @@ impl BinaryNumbersGame {
     fn handle_result_available(&mut self, input: KeyEvent) {
         match input.code {
             KeyCode::Enter => {
-                if self.lives == 0 && !self.game_over_revealed { // reveal summary instead of new puzzle
-                    self.game_over = true;
-                    self.game_over_revealed = true;
-                } else {
-                    // Start a new puzzle, difficulty scaling with current streak
-                    self.puzzle = Self::init_puzzle(self.bits.clone(), self.streak);
-                    self.puzzle_resolved = false;
+                match self.game_state {
+                    GameState::PendingGameOver => {
+                        // reveal summary
+                        self.game_state = GameState::GameOver;
+                    }
+                    GameState::Result => {
+                        // start next puzzle
+                        self.puzzle = Self::init_puzzle(self.bits.clone(), self.streak);
+                        self.puzzle_resolved = false;
+                        self.game_state = GameState::Active;
+                    }
+                    GameState::GameOver => { /* handled elsewhere */ }
+                    GameState::Active => { /* shouldn't be here */ }
                 }
             }
             KeyCode::Esc => self.exit_intended = true,
@@ -466,7 +469,7 @@ impl BinaryNumbersGame {
             max_lives: self.max_lives,
             bits: self.bits.clone(),
             hearts: self.lives_hearts(),
-            game_over: self.game_over, // only true after reveal
+            game_state: self.game_state,
             prev_high_score: self.prev_high_score_for_display,
             new_high_score: self.new_high_score_reached,
         });
