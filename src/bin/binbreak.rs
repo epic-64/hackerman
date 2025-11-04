@@ -186,27 +186,25 @@ fn handle_game_key(game: &mut BinaryNumbersGame, key: KeyEvent) {
 
 fn render_big_text(area: Rect, buf: &mut Buffer) {
     let art = r#"
- ,,        ,,        ,,
-*MM        db   mm  *MM                                `7MM
- MM             MM   MM                                  MM
- MM,dMMb.`7MM mmMMmm MM,dMMb.`7Mb,od8 .gP"Ya   ,6"Yb.    MM  ,MP'
- MM    `Mb MM   MM   MM    `Mb MM' "',M'   Yb 8)   MM    MM ;Y
- MM     M8 MM   MM   MM     M8 MM    8M""""""  ,pm9MM    MM;Mm
- MM.   ,M9 MM   MM   MM.   ,M9 MM    YM.    , 8M   MM    MM `Mb.
- P^YbmdP'.JMML. `MbmoP^YbmdP'.JMML.   `Mbmmd' `Moo9^Yo..JMML. YA.
-   142    151   164     142   162       145     141       153
+ ,,        ,,              ,,
+*MM        db             *MM                                `7MM
+ MM                        MM                                  MM
+ MM,dMMb.`7MM  `7MMpMMMb.  MM,dMMb.`7Mb,od8 .gP"Ya   ,6"Yb.    MM  ,MP'
+ MM    `Mb MM    MM    MM  MM    `Mb MM' "',M'   Yb 8)   MM    MM ;Y
+ MM     M8 MM    MM    MM  MM     M8 MM    8M""""""  ,pm9MM    MM;Mm
+ MM.   ,M9 MM    MM    MM  MM.   ,M9 MM    YM.    , 8M   MM    MM `Mb.
+ P^YbmdP'.JMML..JMML  JMML.P^YbmdP'.JMML.   `Mbmmd' `Moo9^Yo..JMML. YA.
     "#.nice();
 
     let colors = r#"
- ,,        ,,        ,,
-*MM        db   mm  *MM                                `7MM
- MM             MM   MM                                  MM
- MM,dMMb.`7MM mmMMmm MM,dMMb.`7Mb,od8 .gP"Ya   ,6"Yb.    MM  ,MP'
- MM    `Mb MM   MM   MM    `Mb MM' "',M'   Yb 8)   MM    MM ;Y
- MM     M8 MM   MM   MM     M8 MM    8M""""""  ,pm9MM    MM;Mm
- MM.   ,M9 MM   MM   MM.   ,M9 MM    YM.    , 8M   MM    MM `Mb.
- P^YbmdP'.JMML. `MbmoP^YbmdP'.JMML.   `Mbmmd' `Moo9^Yo..JMML. YA.
-   142    151   164     142   162       145     141       153
+ ,,        ,,              ,,
+*MM        db             *MM                                `7MM
+ MM                        MM                                  MM
+ MM,dMMb.`7MM  `7MMpMMMb.  MM,dMMb.`7Mb,od8 .gP"Ya   ,6"Yb.    MM  ,MP'
+ MM    `Mb MM    MM    MM  MM    `Mb MM' "',M'   Yb 8)   MM    MM ;Y
+ MM     M8 MM    MM    MM  MM     M8 MM    8M""""""  ,pm9MM    MM;Mm
+ MM.   ,M9 MM    MM    MM  MM.   ,M9 MM    YM.    , 8M   MM    MM `Mb.
+ P^YbmdP'.JMML..JMML  JMML.P^YbmdP'.JMML.   `Mbmmd' `Moo9^Yo..JMML. YA.
     "#.nice();
 
     let color_map = HashMap::from([
