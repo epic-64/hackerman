@@ -27,7 +27,7 @@ struct StartMenuState {
 impl StartMenuState {
     fn new() -> Self {
         let items = vec![
-            ("easy (4 bits)".to_string(), Bits::Four),
+            ("easy   (4 bits)".to_string(), Bits::Four),
             ("normal (8 bits)".to_string(), Bits::Eight),
             ("master (12 bits)".to_string(), Bits::Twelve),
             ("insane (16 bits)".to_string(), Bits::Sixteen),
@@ -80,35 +80,21 @@ fn render_start_screen(state: &mut StartMenuState, area: Rect, buf: &mut Buffer)
     render_big_text(ascii_area, buf);
 
     let selected = state.selected_index();
-    let max_base_len: u16 = state
-        .items
-        .iter()
-        .map(|(label, _)| label.to_uppercase().len() as u16)
-        .max()
-        .unwrap_or(0);
+    // Uppercase labels and compute widest
+    let upper_labels: Vec<String> = state.items.iter().map(|(l, _)| l.to_uppercase()).collect();
+    let max_len = upper_labels.iter().map(|s| s.len() as u16).max().unwrap_or(0);
 
-    // Build labels with a fixed 2-char marker column: (marker or space) + space
-    let display_labels: Vec<String> = state
-        .items
-        .iter()
-        .enumerate()
-        .map(|(i, (label, _))| {
-            let padded = format!("{:<width$}", label.to_uppercase(), width = max_base_len as usize);
-            let marker = if i == selected { "»" } else { " " }; // single marker char
-            format!("{} {}", marker, padded) // total prefix length always 2
-        })
-        .collect();
+    // Fixed width: one marker char + space + label
+    let list_width = 2 + max_len; // marker column ("»" or space) + space + text
+    let list_height = upper_labels.len() as u16;
 
-    let list_height: u16 = display_labels.len() as u16;
-    let list_width: u16 = 2 + max_base_len; // marker column + text
+    // Center area for list
+    let remaining_h = area.height.saturating_sub(ASCII_HEIGHT);
+    let y = area.y + ASCII_HEIGHT + (remaining_h.saturating_sub(list_height)) / 2;
+    let x = area.x + (area.width.saturating_sub(list_width)) / 2;
+    let list_area = Rect::new(x, y, list_width.min(area.width), list_height.min(remaining_h));
 
-    let remaining_height = area.height.saturating_sub(ASCII_HEIGHT);
-    let offset_y = (remaining_height.saturating_sub(list_height)) / 2;
-    let list_y = area.y + ASCII_HEIGHT + offset_y;
-    let offset_x = (area.width.saturating_sub(list_width)) / 2;
-    let list_x = area.x + offset_x;
-    let list_area = Rect::new(list_x, list_y, list_width.min(area.width), list_height.min(remaining_height));
-
+    // Palette for a bit of flair
     let palette = [
         Color::Magenta,
         Color::LightMagenta,
@@ -116,13 +102,16 @@ fn render_start_screen(state: &mut StartMenuState, area: Rect, buf: &mut Buffer)
         Color::LightCyan,
         Color::Yellow,
     ];
-    let items: Vec<ListItem> = display_labels
+
+    let items: Vec<ListItem> = upper_labels
         .into_iter()
         .enumerate()
-        .map(|(i, text)| {
-            let color = palette[i % palette.len()];
-            let style = Style::default().fg(color).add_modifier(Modifier::BOLD);
-            ListItem::new(Line::from(Span::styled(text, style)))
+        .map(|(i, label)| {
+            let marker = if i == selected { '»' } else { ' ' };
+            let padded = format!("{:<width$}", label, width = max_len as usize);
+            let line = format!("{} {}", marker, padded);
+            let style = Style::default().fg(palette[i % palette.len()]).add_modifier(Modifier::BOLD);
+            ListItem::new(Span::styled(line, style))
         })
         .collect();
 
