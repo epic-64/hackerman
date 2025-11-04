@@ -75,41 +75,40 @@ fn handle_start_input(state: &mut StartMenuState, key: KeyEvent) -> Option<AppSt
 }
 
 fn render_start_screen(state: &mut StartMenuState, area: Rect, buf: &mut Buffer) {
-    // Height reserved for ASCII art header
-    const ASCII_HEIGHT: u16 = 10; // approximate lines used by render_big_text
-
-    // Render ASCII art at the top spanning full width slice (same as before)
+    const ASCII_HEIGHT: u16 = 10;
     let ascii_area = Rect::new(area.x, area.y, area.width, ASCII_HEIGHT.min(area.height));
     render_big_text(ascii_area, buf);
 
-    // Compute list metrics
-    let epic_labels: Vec<String> = state
+    let selected = state.selected_index();
+    let max_base_len: u16 = state
         .items
         .iter()
-        .map(|(label, _)| format!("» {} «", label.to_uppercase()))
+        .map(|(label, _)| label.to_uppercase().len() as u16)
+        .max()
+        .unwrap_or(0);
+
+    // Build labels with a fixed 2-char marker column: (marker or space) + space
+    let display_labels: Vec<String> = state
+        .items
+        .iter()
+        .enumerate()
+        .map(|(i, (label, _))| {
+            let padded = format!("{:<width$}", label.to_uppercase(), width = max_base_len as usize);
+            let marker = if i == selected { "»" } else { " " }; // single marker char
+            format!("{} {}", marker, padded) // total prefix length always 2
+        })
         .collect();
 
-    let list_height: u16 = epic_labels.len() as u16; // one line per item
-    let list_width: u16 = epic_labels
-        .iter()
-        .map(|s| s.len() as u16)
-        .max()
-        .unwrap_or(0)
-        .saturating_add(4); // padding + potential highlight symbol
+    let list_height: u16 = display_labels.len() as u16;
+    let list_width: u16 = 2 + max_base_len; // marker column + text
 
-    // Center vertically in remaining space below ASCII art
     let remaining_height = area.height.saturating_sub(ASCII_HEIGHT);
-    let offset_y = (remaining_height.saturating_sub(list_height)) / 2; // vertical centering
+    let offset_y = (remaining_height.saturating_sub(list_height)) / 2;
     let list_y = area.y + ASCII_HEIGHT + offset_y;
-
-    // Center horizontally
     let offset_x = (area.width.saturating_sub(list_width)) / 2;
     let list_x = area.x + offset_x;
-
-    // Ensure we don't overflow
     let list_area = Rect::new(list_x, list_y, list_width.min(area.width), list_height.min(remaining_height));
 
-    // Build styled items with a color palette for an "epic" feel
     let palette = [
         Color::Magenta,
         Color::LightMagenta,
@@ -117,27 +116,17 @@ fn render_start_screen(state: &mut StartMenuState, area: Rect, buf: &mut Buffer)
         Color::LightCyan,
         Color::Yellow,
     ];
-    let items: Vec<ListItem> = epic_labels
+    let items: Vec<ListItem> = display_labels
         .into_iter()
         .enumerate()
         .map(|(i, text)| {
             let color = palette[i % palette.len()];
-            ListItem::new(Line::from(Span::styled(
-                text,
-                Style::default().fg(color).add_modifier(Modifier::BOLD),
-            )))
+            let style = Style::default().fg(color).add_modifier(Modifier::BOLD);
+            ListItem::new(Line::from(Span::styled(text, style)))
         })
         .collect();
 
-    let list = List::new(items)
-        .highlight_style(
-            Style::default()
-                .fg(Color::White)
-                .bg(Color::Blue)
-                .add_modifier(Modifier::BOLD | Modifier::REVERSED),
-        )
-        .highlight_symbol("▶ ");
-
+    let list = List::new(items);
     ratatui::widgets::StatefulWidget::render(list, list_area, buf, &mut state.list_state);
 }
 
