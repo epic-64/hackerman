@@ -576,3 +576,9 @@ impl BinaryNumbersPuzzle {
         }
     }
 }
+
+impl Widget for &mut BinaryNumbersGame {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        self.render_ref(area, buf);
+    }
+}
