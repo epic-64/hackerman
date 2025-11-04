@@ -8,23 +8,6 @@ use std::{env, thread};
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
-    // Optional: allow bypass start screen via CLI arg bits
-    if let Some(arg) = env::args().nth(1) {
-        if ["4", "8", "12", "16"].contains(&arg.as_str()) {
-            let bits = match arg.as_str() {
-                "4" => Bits::Four,
-                "8" => Bits::Eight,
-                "12" => Bits::Twelve,
-                "16" => Bits::Sixteen,
-                _ => Bits::Eight,
-            };
-            let mut game = BinaryNumbersGame::new(bits);
-            let mut terminal = ratatui::init();
-            run_direct_game(&mut terminal, &mut game)?;
-            ratatui::restore();
-            return Ok(());
-        }
-    }
     let mut terminal = ratatui::init();
     let result = run_app(&mut terminal);
     ratatui::restore();
@@ -182,33 +165,4 @@ fn handle_game_key(game: &mut BinaryNumbersGame, key: KeyEvent) {
         }
         _ => game.handle_game_input(key),
     }
-}
-
-// Fallback direct game loop if bits supplied via CLI
-fn run_direct_game(
-    terminal: &mut ratatui::DefaultTerminal,
-    game: &mut BinaryNumbersGame,
-) -> color_eyre::Result<()> {
-    let mut last_frame_time = Instant::now();
-    let target_frame_duration = std::time::Duration::from_millis(33);
-    while !game.is_exit_intended() {
-        let now = Instant::now();
-        let dt = now - last_frame_time;
-        last_frame_time = now;
-        terminal.draw(|f| f.render_widget(&mut *game, f.area()))?;
-        game.run(dt.as_secs_f64());
-        let poll_timeout = std::cmp::min(dt, target_frame_duration);
-        if event::poll(poll_timeout)? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press {
-                    handle_game_key(game, key);
-                }
-            }
-        }
-        let frame_duration = last_frame_time.elapsed();
-        if frame_duration < target_frame_duration {
-            thread::sleep(target_frame_duration - frame_duration);
-        }
-    }
-    Ok(())
 }
