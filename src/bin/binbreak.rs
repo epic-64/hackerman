@@ -1,8 +1,18 @@
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use hackerman::games::binary_numbers::{BinaryNumbersGame, Bits};
 use hackerman::games::main_screen_widget::MainScreenWidget;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use std::time::Instant;
 use std::{cmp, env, thread};
+
+fn main() -> color_eyre::Result<()> {
+    color_eyre::install()?;
+    let bits = parse_bits_arg();
+    let mut game = BinaryNumbersGame::new(bits);
+    let mut terminal = ratatui::init();
+    game_loop(&mut game, &mut terminal)?;
+    ratatui::restore();
+    Ok(())
+}
 
 fn parse_bits_arg() -> Bits {
     let arg = env::args().nth(1).unwrap_or_else(|| "8".to_string());
@@ -15,12 +25,10 @@ fn parse_bits_arg() -> Bits {
     }
 }
 
-fn main() -> color_eyre::Result<()> {
-    color_eyre::install()?;
-    let bits = parse_bits_arg();
-    let mut game = BinaryNumbersGame::new(bits);
-
-    let mut terminal = ratatui::init();
+fn game_loop(
+    game: &mut BinaryNumbersGame,
+    terminal: &mut ratatui::DefaultTerminal,
+) -> color_eyre::Result<()> {
     let mut last_frame_time = Instant::now();
     let target_frame_duration = std::time::Duration::from_millis(33); // ~30 FPS
 
@@ -30,16 +38,18 @@ fn main() -> color_eyre::Result<()> {
         last_frame_time = now;
 
         // draw frame
-        terminal.draw(|f| f.render_widget(&mut game, f.area()))?;
+        terminal.draw(|f| f.render_widget(&mut *game, f.area()))?;
 
         // advance game state
         game.run(dt.as_secs_f64());
 
         // handle input (non-blocking with poll)
-        let poll_timeout = cmp::min(dt, target_frame_duration);
+        let poll_timeout = std::cmp::min(dt, target_frame_duration);
         if event::poll(poll_timeout)? {
             if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press { handle_key(&mut game, key); }
+                if key.kind == KeyEventKind::Press {
+                    handle_key(game, key);
+                }
             }
         }
 
@@ -49,8 +59,6 @@ fn main() -> color_eyre::Result<()> {
             thread::sleep(target_frame_duration - frame_duration);
         }
     }
-
-    ratatui::restore();
     Ok(())
 }
 
