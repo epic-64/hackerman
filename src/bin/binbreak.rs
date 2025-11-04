@@ -30,9 +30,7 @@ fn main() -> color_eyre::Result<()> {
         last_frame_time = now;
 
         // draw frame
-        terminal.draw(|f| {
-            f.render_widget(&mut game, f.area());
-        })?;
+        terminal.draw(|f| f.render_widget(&mut game, f.area()))?;
 
         // advance game state
         game.run(dt.as_secs_f64());
