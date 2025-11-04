@@ -1,92 +1,106 @@
 use crate::games::main_screen_widget::{MainScreenWidget, WidgetRef};
 use crate::utils::{center, When};
-use color_eyre::owo_colors::OwoColorize;
 use crossterm::event::{KeyCode, KeyEvent};
 use rand::prelude::SliceRandom;
 use rand::Rng;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Flex, Layout, Rect};
 use ratatui::prelude::Alignment::Center;
-use ratatui::prelude::{Color, Line, Style, Stylize, Text, Widget};
+use ratatui::prelude::{Color, Line, Style, Stylize, Widget};
 use ratatui::text::Span;
 use ratatui::widgets::BorderType::Double;
 use ratatui::widgets::{Block, BorderType, Gauge, Paragraph};
 
-const MAX_LIVES: u32 = 5; // maximum lives attainable via streak bonuses
+// NEW: snapshot of game stats passed into puzzle for integrated layout
+struct StatsSnapshot {
+    score: u32,
+    streak: u32,
+    max_streak: u32,
+    rounds: u32,
+    lives: u32,
+    max_lives: u32, // NEW: configurable upper bound
+    bits: Bits,
+    hearts: String,
+    game_over: bool,
+}
 
 impl WidgetRef for BinaryNumbersGame {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        // Create a scoreboard area on top and pass remaining area to puzzle
-        let [scoreboard_area, puzzle_area] = Layout::vertical([
-            Constraint::Length(3),
-            Constraint::Min(0),
-        ])
-        .flex(Flex::Start)
-        .horizontal_margin(1)
-        .areas(area);
-
-        // Render scoreboard
-        Block::bordered()
-            .title("Binary Numbers")
-            .title_alignment(Center)
-            .dark_gray()
-            .render(scoreboard_area, buf);
-
-        let hearts = self.lives_hearts();
-        let info_line = Line::from(vec![
-            Span::styled(format!("Score: {}  ", self.score), Style::default().fg(Color::Green)),
-            Span::styled(format!("Streak: {}  ", self.streak), Style::default().fg(Color::Cyan)),
-            Span::styled(format!("Rounds: {}  ", self.rounds), Style::default().fg(Color::Magenta)),
-            Span::styled(format!("Lives: {} ({}/{})  ", hearts, self.lives, MAX_LIVES), Style::default().fg(Color::Red)),
-            Span::styled(format!("Bits: {}", self.bits.to_int()), Style::default().fg(Color::Yellow)),
-        ]);
-        Paragraph::new(info_line.clone())
-            .alignment(Center)
-            .render(center(scoreboard_area, Constraint::Length(info_line.width() as u16)), buf);
-
-        if self.game_over {
-            // Render a game over screen instead of puzzle
-            let block = Block::bordered()
-                .title("Game Over")
-                .title_alignment(Center)
-                .border_type(Double)
-                .title_style(Style::default().fg(Color::Red));
-            block.render(puzzle_area, buf);
-            let lines = vec![
-                Line::from(Span::styled(format!("Final Score: {}", self.score), Style::default().fg(Color::Green))),
-                Line::from(Span::styled(format!("Rounds Played: {}", self.rounds), Style::default().fg(Color::Magenta))),
-                Line::from(Span::styled("Press Enter to restart or Esc to exit", Style::default().fg(Color::Yellow))),
-            ];
-            Paragraph::new(lines)
-                .alignment(Center)
-                .render(center(puzzle_area, Constraint::Length(40)), buf);
-            return;
-        }
-
-        // Render puzzle in remaining area when not game over
-        self.puzzle.render_ref(puzzle_area, buf);
+        let [game_column] = Layout::horizontal([Constraint::Length(65)])
+            .flex(Flex::Center)
+            .horizontal_margin(1)
+            .areas(area);
+        // puzzle holds latest stats snapshot updated during run()
+        self.puzzle.render_ref(game_column, buf);
     }
 }
 
 impl WidgetRef for BinaryNumbersPuzzle {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let [middle] = Layout::horizontal([Constraint::Length(65)]).flex(Flex::Center).areas(area);
+        // Unified vertical layout: stats + current number + suggestions + status/time + result/instructions (or game over)
+        let [middle] = Layout::horizontal([Constraint::Percentage(100)])
+            .flex(Flex::Center)
+            .areas(area);
 
-        let [current_number_area, suggestions_area, progress_bar_area, result_area] =
+        let [stats_area, current_number_area, suggestions_area, progress_bar_area, result_area] =
             Layout::vertical([
-                Constraint::Length(5), // Current number area
-                Constraint::Length(3), // Suggestion area
-                Constraint::Length(5), // Progress Bar / Result area (increased from 3 for gauge space)
-                Constraint::Length(5), // Result / instructions area
+                Constraint::Length(3),  // stats row
+                Constraint::Length(5),  // current number area
+                Constraint::Length(3),  // suggestion area
+                Constraint::Length(4),  // status + time area
+                Constraint::Length(5),  // result / instructions area OR game over block
             ])
             .flex(Flex::Center)
-            .horizontal_margin(1)
+            .horizontal_margin(0)
             .areas(middle);
 
-        let binary_string = self.current_to_binary_string();
-        let suggestions = self.suggestions();
+        // Render stats bar integrated at top
+        Block::bordered()
+            .title("Binary Numbers")
+            .title_alignment(Center)
+            .dark_gray()
+            .render(stats_area, buf);
 
-        // draw current number
+        // Use snapshot if present
+        if let Some(stats) = &self.stats_snapshot {
+            let info_line = Line::from(vec![
+                Span::styled(format!("Score: {}  ", stats.score), Style::default().fg(Color::Green)),
+                Span::styled(format!("Streak: {}  ", stats.streak), Style::default().fg(Color::Cyan)),
+                Span::styled(format!("Max: {}  ", stats.max_streak), Style::default().fg(Color::Blue)),
+                Span::styled(format!("Rounds: {}  ", stats.rounds), Style::default().fg(Color::Magenta)),
+                Span::styled(format!("Lives: {}  ", stats.hearts), Style::default().fg(Color::Red)),
+                Span::styled(format!("Bits: {}", stats.bits.to_int()), Style::default().fg(Color::Yellow)),
+            ]);
+            Paragraph::new(info_line.clone())
+                .alignment(Center)
+                .render(center(stats_area, Constraint::Length(info_line.width() as u16)), buf);
+
+            // If game over, render game over block occupying the remaining area and return early
+            if stats.game_over {
+                let combined_rect = Rect { x: current_number_area.x, y: current_number_area.y, width: current_number_area.width, height: current_number_area.height + suggestions_area.height + progress_bar_area.height + result_area.height };
+                let block = Block::bordered()
+                    .title("Game Over")
+                    .title_alignment(Center)
+                    .border_type(Double)
+                    .title_style(Style::default().fg(Color::Red));
+                block.render(combined_rect, buf);
+                let mut lines = vec![
+                    Line::from(Span::styled(format!("Final Score: {}", stats.score), Style::default().fg(Color::Green))),
+                    Line::from(Span::styled(format!("Rounds Played: {}", stats.rounds), Style::default().fg(Color::Magenta))),
+                    Line::from(Span::styled(format!("Max Streak: {}", stats.max_streak), Style::default().fg(Color::Cyan))),
+                ];
+                if stats.lives == 0 {
+                    lines.push(Line::from(Span::styled("You lost all your lives.", Style::default().fg(Color::Red))));
+                }
+                lines.push(Line::from(Span::styled("Press Enter to restart or Esc to exit", Style::default().fg(Color::Yellow))));
+                Paragraph::new(lines)
+                    .alignment(Center)
+                    .render(center(combined_rect, Constraint::Length(48)), buf);
+                return;
+            }
+        }
+
+        // Existing puzzle rendering now uses updated area references
         let [inner] = Layout::horizontal([Constraint::Percentage(100)])
             .flex(Flex::Center)
             .areas(current_number_area);
@@ -96,25 +110,16 @@ impl WidgetRef for BinaryNumbersPuzzle {
             .border_style(Style::default().dark_gray())
             .render(inner, buf);
 
-        // Show binary string + optional hint
+        let binary_string = self.current_to_binary_string();
         let mut lines: Vec<Line> = vec![Line::raw(binary_string.clone())];
-        if self.show_hint {
-            lines.push(Line::from(vec![Span::styled(
-                format!("= {}", self.current_number),
-                Style::default().fg(Color::DarkGray),
-            )]));
-        }
-        let para = Paragraph::new(lines).alignment(Center);
-        let centered = center(inner, Constraint::Length(binary_string.len() as u16));
-        // replaced width() -> len() since binary string is ASCII (0/1 + spaces)
-        para.render(centered, buf);
+        if self.show_hint { lines.push(Line::from(vec![Span::styled(format!("= {}", self.current_number), Style::default().fg(Color::DarkGray))])); }
+        Paragraph::new(lines).alignment(Center).render(center(inner, Constraint::Length(binary_string.len() as u16)), buf);
 
-        // create sub layout for suggestions
+        let suggestions = self.suggestions();
         let suggestions_layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![Constraint::Min(6); suggestions.len()])
             .split(suggestions_area);
-
         for (i, suggestion) in suggestions.iter().enumerate() {
             let item_is_selected = self.selected_suggestion == Some(*suggestion);
             let show_correct_number = self.guess_result.is_some();
@@ -137,12 +142,11 @@ impl WidgetRef for BinaryNumbersPuzzle {
             Block::bordered().border_type(border_type).fg(border_color).render(area, buf);
 
             let suggestion_str = format!("{suggestion}");
-            let centered = center(area, Constraint::Length(suggestion_str.len() as u16));
             Paragraph::new(format!("{}", suggestion_str))
                 .white()
                 .when(show_correct_number && is_correct_number, |p| p.light_green().underlined())
                 .alignment(Center)
-                .render(centered, buf);
+                .render(center(area, Constraint::Length(suggestion_str.len() as u16)), buf);
         }
 
         let [left, right] = Layout::default()
@@ -150,36 +154,32 @@ impl WidgetRef for BinaryNumbersPuzzle {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .areas(progress_bar_area);
 
-        Block::bordered()
-            .dark_gray()
-            .title("Status")
-            .title_alignment(Center)
-            .title_style(Style::default().white())
-            .render(left, buf);
+        Block::bordered().dark_gray().title("Status").title_alignment(Center).title_style(Style::default().white()).render(left, buf);
 
-        // display the result if available
         if let Some(result) = &self.guess_result {
-            let result_text = match result {
-                GuessResult::Correct => ":) Correct Guess!",
-                GuessResult::Incorrect => ":( Incorrect Guess!",
-                GuessResult::Timeout => ":( Time's Up!",
+            let (icon, line1_text, color) = match result {
+                GuessResult::Correct => (":)", "success", Color::Green),
+                GuessResult::Incorrect => (":(", "incorrect", Color::Red),
+                GuessResult::Timeout => (":(", "time's up", Color::Yellow),
             };
 
-            let color = match result {
-                GuessResult::Correct => Color::Green,
-                GuessResult::Incorrect => Color::Red,
-                GuessResult::Timeout => Color::Yellow,
+            let gained_line = match result {
+                GuessResult::Correct => format!("gained {} points", self.last_points_awarded),
+                GuessResult::Incorrect => "lost a life".to_string(),
+                GuessResult::Timeout => "timeout".to_string(),
             };
 
-            let text = vec![Line::from(result_text.fg(color))];
-
+            let text = vec![
+                Line::from(format!("{} {}", icon, line1_text).fg(color)),
+                Line::from(gained_line.fg(color)),
+            ];
+            let widest = text.iter().map(|l| l.width()).max().unwrap_or(0) as u16;
             Paragraph::new(text)
                 .alignment(Center)
                 .style(Style::default().fg(color))
-                .render(center(left, Constraint::Length(20)), buf);
+                .render(center(left, Constraint::Length(widest)), buf);
         }
 
-        // Dynamic gauge color based on remaining ratio
         let ratio = self.time_left / self.time_total;
         let gauge_color = if ratio > 0.6 {
             Color::Green
@@ -198,7 +198,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
         let inner_time = time_block.inner(right);
         time_block.render(right, buf);
 
-        // Vertical layout inside the time block interior: gauge line + text line
+        // Vertical layout inside the time block interior: gauge line + text line (2 lines total)
         let [gauge_line, time_line] = Layout::vertical([
             Constraint::Length(1), // gauge occupies one row
             Constraint::Length(1), // time text occupies one row
@@ -245,9 +245,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
                 Span::styled("> play again", Style::default().fg(Color::White)),
             ]);
         }
-
-        let text = vec![Line::from(instruction_spans)];
-        Paragraph::new(text)
+        Paragraph::new(vec![Line::from(instruction_spans)])
             .alignment(Center)
             .render(center(result_area, Constraint::Length(65)), buf);
     }
@@ -260,18 +258,27 @@ pub struct BinaryNumbersGame {
     score: u32,
     streak: u32,
     rounds: u32,
-    puzzle_resolved: bool, // prevents double finalization
-    lives: u32,            // NEW: lives remaining
-    game_over: bool,       // NEW: game over state
+    puzzle_resolved: bool,
+    lives: u32,
+    max_lives: u32, // NEW: configurable max lives
+    game_over: bool,
+    max_streak: u32,
 }
 
 impl MainScreenWidget for BinaryNumbersGame {
     fn run(&mut self, dt: f64) {
-        if self.game_over { return; }
-        self.puzzle.run(dt);
-        if self.puzzle.guess_result.is_some() && !self.puzzle_resolved {
-            self.finalize_round();
+        // refresh snapshot before puzzle runs so timeout status uses latest lives/streak
+        self.refresh_stats_snapshot();
+
+        if self.game_over {
+            return;
         }
+
+        self.puzzle.run(dt);
+        if self.puzzle.guess_result.is_some() && !self.puzzle_resolved { self.finalize_round(); }
+
+        // refresh again after potential finalize so updated score/streak show immediately
+        self.refresh_stats_snapshot();
     }
 
     fn handle_input(&mut self, input: KeyEvent) -> () { self.handle_game_input(input); }
@@ -279,7 +286,8 @@ impl MainScreenWidget for BinaryNumbersGame {
 }
 
 impl BinaryNumbersGame {
-    pub fn new(bits: Bits) -> Self {
+    pub fn new(bits: Bits) -> Self { Self::new_with_max_lives(bits, 5) }
+    pub fn new_with_max_lives(bits: Bits, max_lives: u32) -> Self {
         Self {
             bits: bits.clone(),
             puzzle: Self::init_puzzle(bits.clone(), 0),
@@ -288,8 +296,10 @@ impl BinaryNumbersGame {
             streak: 0,
             rounds: 0,
             puzzle_resolved: false,
-            lives: 3, // start with 3 lives
+            lives: max_lives.min(3), // start lives: min(requested max, default 3)
+            max_lives,
             game_over: false,
+            max_streak: 0,
         }
     }
 
@@ -300,8 +310,10 @@ impl BinaryNumbersGame {
 
 impl BinaryNumbersGame {
     pub fn lives_hearts(&self) -> String {
-        let full = "♥".repeat(self.lives as usize);
-        let empty = "·".repeat((MAX_LIVES - self.lives) as usize);
+        let full_count = self.lives.min(self.max_lives) as usize;
+        let full = "♥".repeat(full_count);
+        let empty_count = self.max_lives.saturating_sub(self.lives) as usize;
+        let empty = "·".repeat(empty_count);
         format!("{}{}", full, empty)
     }
 
@@ -311,14 +323,19 @@ impl BinaryNumbersGame {
             match result {
                 GuessResult::Correct => {
                     self.streak += 1;
-                    self.score += 10 + (self.streak * 2);
-                    // Award extra life every 5 streaks (up to MAX_LIVES)
-                    if self.streak % 5 == 0 && self.lives < MAX_LIVES {
+                    if self.streak > self.max_streak { self.max_streak = self.streak; }
+                    let streak_bonus = (self.streak - 1) * 2;
+                    let points = 10 + streak_bonus;
+                    self.score += points;
+                    self.puzzle.last_points_awarded = points;
+                    // Award extra life every 5 streaks (up to max_lives)
+                    if self.streak % 5 == 0 && self.lives < self.max_lives {
                         self.lives += 1;
                     }
                 }
                 GuessResult::Incorrect | GuessResult::Timeout => {
                     self.streak = 0;
+                    self.puzzle.last_points_awarded = 0;
                     if self.lives > 0 { self.lives -= 1; }
                 }
             }
@@ -348,10 +365,13 @@ impl BinaryNumbersGame {
         self.score = 0;
         self.streak = 0;
         self.rounds = 0;
-        self.lives = 3;
+        // reset to min(3, max_lives) so reduced max doesn't keep higher start
+        self.lives = self.max_lives.min(3);
         self.game_over = false;
         self.puzzle_resolved = false;
+        self.max_streak = 0;
         self.puzzle = Self::init_puzzle(self.bits.clone(), 0);
+        self.refresh_stats_snapshot();
     }
 
     fn handle_no_result_yet(&mut self, input: KeyEvent) {
@@ -420,6 +440,20 @@ impl BinaryNumbersGame {
             _ => {}
         }
     }
+
+    fn refresh_stats_snapshot(&mut self) {
+        self.puzzle.stats_snapshot = Some(StatsSnapshot {
+            score: self.score,
+            streak: self.streak,
+            max_streak: self.max_streak,
+            rounds: self.rounds,
+            lives: self.lives,
+            max_lives: self.max_lives,
+            bits: self.bits.clone(),
+            hearts: self.lives_hearts(),
+            game_over: self.game_over,
+        });
+    }
 }
 
 #[derive(PartialEq, Copy, Clone)]
@@ -465,6 +499,8 @@ pub struct BinaryNumbersPuzzle {
     time_left: f64,
     guess_result: Option<GuessResult>,
     show_hint: bool,
+    last_points_awarded: u32,
+    stats_snapshot: Option<StatsSnapshot>, // NEW: integrated stats
 }
 
 impl BinaryNumbersPuzzle {
@@ -497,6 +533,7 @@ impl BinaryNumbersPuzzle {
         let selected_suggestion = Some(suggestions[0]);
         let guess_result = None;
         let show_hint = false;
+        let last_points_awarded = 0;
 
         Self {
             bits,
@@ -507,6 +544,8 @@ impl BinaryNumbersPuzzle {
             selected_suggestion,
             guess_result,
             show_hint,
+            last_points_awarded,
+            stats_snapshot: None,
         }
     }
 
