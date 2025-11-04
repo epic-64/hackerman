@@ -63,17 +63,9 @@ pub fn handle_input(app: &mut App, input: KeyEvent) -> color_eyre::Result<()> {
         }
         KeyCode::Char(' ') => app.refresh_without_inputs = !app.refresh_without_inputs,
         KeyCode::Esc => app.current_main_widget = None,
-        KeyCode::F(2) => match app.current_main_widget {
-            None => {}
-            Some(ref game) => {}
-        },
-        KeyCode::F(4) => {
-            // Debug mode toggle
-            app.debug_mode = !app.debug_mode;
-        }
+        KeyCode::F(4) => app.debug_mode = !app.debug_mode,
         _ => {}
     }
-
     match &mut app.current_main_widget {
         None => handle_main_menu_inputs(app, input),
         Some(game) => game.handle_input(input),
