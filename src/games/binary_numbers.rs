@@ -120,8 +120,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
             .render(inner, buf);
 
         let binary_string = self.current_to_binary_string();
-        let mut lines: Vec<Line> = vec![Line::raw(binary_string.clone())];
-        if self.show_hint { lines.push(Line::from(vec![Span::styled(format!("= {}", self.current_number), Style::default().fg(Color::DarkGray))])); }
+        let lines: Vec<Line> = vec![Line::raw(binary_string.clone())];
         Paragraph::new(lines).alignment(Center).render(center(inner, Constraint::Length(binary_string.len() as u16)), buf);
 
         let suggestions = self.suggestions();
@@ -229,35 +228,25 @@ impl WidgetRef for BinaryNumbersPuzzle {
 
         Block::bordered().dark_gray().render(result_area, buf);
 
-        let mut instruction_spans: Vec<Span> = vec![
-            Span::styled("<", Style::default().fg(Color::White)),
-            Span::styled("Left/Right", Style::default().fg(Color::LightCyan)),
-            Span::styled("> select  ", Style::default().fg(Color::White)),
-            Span::styled("<", Style::default().fg(Color::White)),
-            Span::styled("Enter", Style::default().fg(Color::LightCyan)),
-            Span::styled("> confirm  ", Style::default().fg(Color::White)),
-            Span::styled("<", Style::default().fg(Color::White)),
-            Span::styled("H", Style::default().fg(Color::LightCyan)),
-            Span::styled("> hint  ", Style::default().fg(Color::White)),
-            Span::styled("<", Style::default().fg(Color::White)),
-            Span::styled("S", Style::default().fg(Color::LightCyan)),
-            Span::styled("> skip  ", Style::default().fg(Color::White)),
-            Span::styled("<", Style::default().fg(Color::White)),
-            Span::styled("Esc", Style::default().fg(Color::LightCyan)),
-            Span::styled("> exit", Style::default().fg(Color::White)),
-        ];
+        let instruction_spans: Vec<Span> = vec![
+            hotkey_span("Left Right", "select  "),
+            hotkey_span("Enter", "confirm  "),
+            hotkey_span("S", "skip  "),
+            hotkey_span("Esc", "exit"),
+        ].iter().flatten().cloned().collect();
 
-        if self.guess_result.is_some() {
-            instruction_spans.extend(vec![
-                Span::styled("  <", Style::default().fg(Color::White)),
-                Span::styled("Enter", Style::default().fg(Color::LightCyan)),
-                Span::styled("> play again", Style::default().fg(Color::White)),
-            ]);
-        }
         Paragraph::new(vec![Line::from(instruction_spans)])
             .alignment(Center)
             .render(center(result_area, Constraint::Length(65)), buf);
     }
+}
+
+fn hotkey_span<'a>(key: &'a str, description: &str) -> Vec<Span<'a>> {
+    vec![
+        Span::styled("<", Style::default().fg(Color::White)),
+        Span::styled(key, Style::default().fg(Color::LightCyan)),
+        Span::styled(format!("> {}", description), Style::default().fg(Color::White)),
+    ]
 }
 
 pub struct BinaryNumbersGame {
@@ -275,6 +264,7 @@ pub struct BinaryNumbersGame {
     high_scores: HighScores,           // NEW: persistent high scores
     prev_high_score_for_display: u32,  // NEW: previous high score captured at game over
     new_high_score_reached: bool,      // NEW: flag if new high score achieved
+    game_over_revealed: bool,          // NEW: player has pressed Enter to reveal summary
 }
 
 impl MainScreenWidget for BinaryNumbersGame {
@@ -298,7 +288,7 @@ impl MainScreenWidget for BinaryNumbersGame {
 }
 
 impl BinaryNumbersGame {
-    pub fn new(bits: Bits) -> Self { Self::new_with_max_lives(bits, 5) }
+    pub fn new(bits: Bits) -> Self { Self::new_with_max_lives(bits, 3) }
     pub fn new_with_max_lives(bits: Bits, max_lives: u32) -> Self {
         let hs = HighScores::load();
         let starting_prev = hs.get(bits.to_int());
@@ -312,11 +302,12 @@ impl BinaryNumbersGame {
             puzzle_resolved: false,
             lives: max_lives.min(3),
             max_lives,
-            game_over: false,
+            game_over: false, // retains meaning: summary revealed
             max_streak: 0,
             high_scores: hs,
             prev_high_score_for_display: starting_prev,
             new_high_score_reached: false,
+            game_over_revealed: false,
         }
     }
 
@@ -353,20 +344,18 @@ impl BinaryNumbersGame {
                     if self.lives > 0 { self.lives -= 1; }
                 }
             }
-            // NEW: immediate high score update if surpassed
+            // immediate high score update if surpassed
             let bits_int = self.bits.to_int();
             let prev = self.high_scores.get(bits_int);
             if self.score > prev {
-                if !self.new_high_score_reached { // first time surpassing this run: capture previous for display
-                    self.prev_high_score_for_display = prev;
-                }
+                if !self.new_high_score_reached { self.prev_high_score_for_display = prev; }
                 self.high_scores.update(bits_int, self.score);
                 self.new_high_score_reached = true;
                 let _ = self.high_scores.save();
             }
-            if self.lives == 0 {
-                self.game_over = true;
-            }
+            // DEFER game over reveal: do not set game_over here
+            // lives == 0 indicates pending game over, shown after Enter
+            if self.lives == 0 { self.game_over_revealed = false; }
             self.puzzle_resolved = true;
         }
     }
@@ -394,7 +383,7 @@ impl BinaryNumbersGame {
         self.rounds = 0;
         self.lives = self.max_lives.min(3);
         self.game_over = false;
-        self.puzzle_resolved = false;
+        self.game_over_revealed = false;
         self.max_streak = 0;
         self.prev_high_score_for_display = self.high_scores.get(self.bits.to_int()); // reset display previous
         self.new_high_score_reached = false;
@@ -441,9 +430,6 @@ impl BinaryNumbersGame {
                     self.finalize_round();
                 }
             }
-            KeyCode::Char('h') | KeyCode::Char('H') => {
-                self.puzzle.show_hint = !self.puzzle.show_hint;
-            }
             KeyCode::Char('s') | KeyCode::Char('S') => {
                 // Skip puzzle counts as timeout
                 self.puzzle.guess_result = Some(GuessResult::Timeout);
@@ -456,15 +442,16 @@ impl BinaryNumbersGame {
     fn handle_result_available(&mut self, input: KeyEvent) {
         match input.code {
             KeyCode::Enter => {
-                // Start a new puzzle, difficulty scaling with current streak
-                self.puzzle = Self::init_puzzle(self.bits.clone(), self.streak);
-                self.puzzle_resolved = false;
+                if self.lives == 0 && !self.game_over_revealed { // reveal summary instead of new puzzle
+                    self.game_over = true;
+                    self.game_over_revealed = true;
+                } else {
+                    // Start a new puzzle, difficulty scaling with current streak
+                    self.puzzle = Self::init_puzzle(self.bits.clone(), self.streak);
+                    self.puzzle_resolved = false;
+                }
             }
             KeyCode::Esc => self.exit_intended = true,
-            KeyCode::Char('h') | KeyCode::Char('H') => {
-                // Allow hint toggle even after result
-                self.puzzle.show_hint = !self.puzzle.show_hint;
-            }
             _ => {}
         }
     }
@@ -479,7 +466,7 @@ impl BinaryNumbersGame {
             max_lives: self.max_lives,
             bits: self.bits.clone(),
             hearts: self.lives_hearts(),
-            game_over: self.game_over,
+            game_over: self.game_over, // only true after reveal
             prev_high_score: self.prev_high_score_for_display,
             new_high_score: self.new_high_score_reached,
         });
@@ -528,7 +515,6 @@ pub struct BinaryNumbersPuzzle {
     time_total: f64,
     time_left: f64,
     guess_result: Option<GuessResult>,
-    show_hint: bool,
     last_points_awarded: u32,
     stats_snapshot: Option<StatsSnapshot>, // NEW: integrated stats
 }
@@ -544,7 +530,7 @@ impl BinaryNumbersPuzzle {
                 suggestions.push(num);
             }
         }
-        
+
         let current_number = suggestions[0];
         suggestions.shuffle(&mut rng);
 
@@ -560,7 +546,6 @@ impl BinaryNumbersPuzzle {
         let time_left = time_total;
         let selected_suggestion = Some(suggestions[0]);
         let guess_result = None;
-        let show_hint = false;
         let last_points_awarded = 0;
 
         Self {
@@ -571,7 +556,6 @@ impl BinaryNumbersPuzzle {
             time_left,
             selected_suggestion,
             guess_result,
-            show_hint,
             last_points_awarded,
             stats_snapshot: None,
         }
@@ -653,4 +637,3 @@ impl HighScores {
 
 // NEW: public helper for external modules (e.g., start screen) to read current high score for a bits mode
 pub fn get_high_score(bits: Bits) -> u32 { HighScores::load().get(bits.to_int()) }
-
