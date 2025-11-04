@@ -544,10 +544,8 @@ impl BinaryNumbersPuzzle {
                 suggestions.push(num);
             }
         }
-
-        // Choose current number from suggestions to ensure it's present
-        let current_index = rng.random_range(0..suggestions.len());
-        let current_number = suggestions[current_index];
+        
+        let current_number = suggestions[0];
         suggestions.shuffle(&mut rng);
 
         // Base time by bits + difficulty scaling (shorter as streak increases)
