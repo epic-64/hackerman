@@ -3,7 +3,7 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifier
 use hackerman::games::binary_numbers::{BinaryNumbersGame, Bits};
 use hackerman::games::main_screen_widget::MainScreenWidget;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, List, ListState, Paragraph};
+use ratatui::widgets::{List, ListItem, ListState};
 use std::time::Instant;
 use std::thread;
 use nice_trim::NiceTrim;
@@ -75,38 +75,70 @@ fn handle_start_input(state: &mut StartMenuState, key: KeyEvent) -> Option<AppSt
 }
 
 fn render_start_screen(state: &mut StartMenuState, area: Rect, buf: &mut Buffer) {
-    let [splash_area, title_area, list_area, info_area] = Layout::vertical([
-        Constraint::Length(9),
-        Constraint::Length(3),
-        Constraint::Min(5),
-        Constraint::Length(4),
-    ])
-    .areas(area);
+    // Height reserved for ASCII art header
+    const ASCII_HEIGHT: u16 = 10; // approximate lines used by render_big_text
 
-    render_big_text(splash_area, buf);
+    // Render ASCII art at the top spanning full width slice (same as before)
+    let ascii_area = Rect::new(area.x, area.y, area.width, ASCII_HEIGHT.min(area.height));
+    render_big_text(ascii_area, buf);
 
-    Paragraph::new("BinBreak - Select Mode")
-        .alignment(Alignment::Center)
-        .block(Block::bordered().title("Start"))
-        .render(title_area, buf);
-
-    let items: Vec<Line> = state
+    // Compute list metrics
+    let epic_labels: Vec<String> = state
         .items
         .iter()
-        .map(|(label, _)| Line::from(label.as_str()))
+        .map(|(label, _)| format!("» {} «", label.to_uppercase()))
         .collect();
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("Modes"))
-        .highlight_style(Style::default().fg(Color::LightCyan).bold())
-        .highlight_symbol("> ")
-        .repeat_highlight_symbol(true);
-    ratatui::widgets::StatefulWidget::render(list, list_area, buf, &mut state.list_state);
 
-    let instructions = "Use Up/Down to select, Enter to start, Esc to exit";
-    Paragraph::new(instructions)
-        .alignment(Alignment::Center)
-        .block(Block::bordered().title("Controls"))
-        .render(info_area, buf);
+    let list_height: u16 = epic_labels.len() as u16; // one line per item
+    let list_width: u16 = epic_labels
+        .iter()
+        .map(|s| s.len() as u16)
+        .max()
+        .unwrap_or(0)
+        .saturating_add(4); // padding + potential highlight symbol
+
+    // Center vertically in remaining space below ASCII art
+    let remaining_height = area.height.saturating_sub(ASCII_HEIGHT);
+    let offset_y = (remaining_height.saturating_sub(list_height)) / 2; // vertical centering
+    let list_y = area.y + ASCII_HEIGHT + offset_y;
+
+    // Center horizontally
+    let offset_x = (area.width.saturating_sub(list_width)) / 2;
+    let list_x = area.x + offset_x;
+
+    // Ensure we don't overflow
+    let list_area = Rect::new(list_x, list_y, list_width.min(area.width), list_height.min(remaining_height));
+
+    // Build styled items with a color palette for an "epic" feel
+    let palette = [
+        Color::Magenta,
+        Color::LightMagenta,
+        Color::LightBlue,
+        Color::LightCyan,
+        Color::Yellow,
+    ];
+    let items: Vec<ListItem> = epic_labels
+        .into_iter()
+        .enumerate()
+        .map(|(i, text)| {
+            let color = palette[i % palette.len()];
+            ListItem::new(Line::from(Span::styled(
+                text,
+                Style::default().fg(color).add_modifier(Modifier::BOLD),
+            )))
+        })
+        .collect();
+
+    let list = List::new(items)
+        .highlight_style(
+            Style::default()
+                .fg(Color::White)
+                .bg(Color::Blue)
+                .add_modifier(Modifier::BOLD | Modifier::REVERSED),
+        )
+        .highlight_symbol("▶ ");
+
+    ratatui::widgets::StatefulWidget::render(list, list_area, buf, &mut state.list_state);
 }
 
 fn run_app(terminal: &mut ratatui::DefaultTerminal) -> color_eyre::Result<()> {
