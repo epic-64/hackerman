@@ -18,7 +18,7 @@ struct StatsSnapshot {
     max_streak: u32,
     rounds: u32,
     lives: u32,
-    max_lives: u32, // NEW: configurable upper bound
+    max_lives: u32,
     bits: Bits,
     hearts: String,
     game_over: bool,
