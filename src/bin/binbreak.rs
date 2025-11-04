@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use hackerman::games::binary_numbers::{BinaryNumbersGame, Bits};
 use hackerman::games::main_screen_widget::MainScreenWidget;
@@ -5,6 +6,9 @@ use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, List, ListState, Paragraph};
 use std::time::Instant;
 use std::thread;
+use nice_trim::NiceTrim;
+use ratatui::layout::Flex::Center;
+use hackerman::utils::{AsciiArtWidget, AsciiCells};
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
@@ -71,12 +75,15 @@ fn handle_start_input(state: &mut StartMenuState, key: KeyEvent) -> Option<AppSt
 }
 
 fn render_start_screen(state: &mut StartMenuState, area: Rect, buf: &mut Buffer) {
-    let [title_area, list_area, info_area] = Layout::vertical([
+    let [splash_area, title_area, list_area, info_area] = Layout::vertical([
+        Constraint::Length(8),
         Constraint::Length(3),
         Constraint::Min(5),
         Constraint::Length(4),
     ])
     .areas(area);
+
+    render_big_text(splash_area, buf);
 
     Paragraph::new("BinBreak - Select Mode")
         .alignment(Alignment::Center)
@@ -165,4 +172,53 @@ fn handle_game_key(game: &mut BinaryNumbersGame, key: KeyEvent) {
         }
         _ => game.handle_game_input(key),
     }
+}
+
+fn render_big_text(area: Rect, buf: &mut Buffer) {
+    let art = r#"
+ ,,        ,,        ,,
+*MM        db   mm  *MM                                `7MM
+ MM             MM   MM                                  MM
+ MM,dMMb.`7MM mmMMmm MM,dMMb.`7Mb,od8 .gP"Ya   ,6"Yb.    MM  ,MP'
+ MM    `Mb MM   MM   MM    `Mb MM' "',M'   Yb 8)   MM    MM ;Y
+ MM     M8 MM   MM   MM     M8 MM    8M""""""  ,pm9MM    MM;Mm
+ MM.   ,M9 MM   MM   MM.   ,M9 MM    YM.    , 8M   MM    MM `Mb.
+ P^YbmdP'.JMML. `MbmoP^YbmdP'.JMML.   `Mbmmd' `Moo9^Yo..JMML. YA.
+    "#.nice();
+
+    let colors = r#"
+ ,,        ,,        ,,
+*MM        db   mm  *MM                                `7MM
+ MM             MM   MM                                  MM
+ MM,dMMb.`7MM mmMMmm MM,dMMb.`7Mb,od8 .gP"Ya   ,6"Yb.    MM  ,MP'
+ MM    `Mb MM   MM   MM    `Mb MM' "',M'   Yb 8)   MM    MM ;Y
+ MM     M8 MM   MM   MM     M8 MM    8M""""""  ,pm9MM    MM;Mm
+ MM.   ,M9 MM   MM   MM.   ,M9 MM    YM.    , 8M   MM    MM `Mb.
+ P^YbmdP'.JMML. `MbmoP^YbmdP'.JMML.   `Mbmmd' `Moo9^Yo..JMML. YA.
+    "#.nice();
+
+    let color_map = HashMap::from([
+        ('█', Color::White),
+        ('R', Color::Red),
+        ('r', Color::LightRed),
+        ('G', Color::LightGreen),
+        ('g', Color::Green),
+        ('B', Color::LightBlue),
+        ('b', Color::Blue),
+        ('Y', Color::LightYellow),
+        //('y', Color::LightYellow),
+        ('P', Color::LightMagenta),
+        ('p', Color::Magenta),
+        ('C', Color::LightCyan),
+        ('W', Color::White),
+        (' ', Color::Reset),
+    ]);
+
+    let default_color = Color::LightBlue;
+    let cells = AsciiCells::from(art.to_string(), colors.to_string(), &color_map, default_color);
+    let width = cells.get_width();
+    let ascii_widget = AsciiArtWidget::new(cells);
+
+    let [centered] = Layout::horizontal([Constraint::Length(width)]).flex(Center).areas(area);
+    ascii_widget.render(centered, buf);
 }
