@@ -134,7 +134,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
             .render(inner, buf);
 
         let binary_string = self.current_to_binary_string();
-        let scale_suffix = match self.bits { Bits::FourShift4 => Some(" x16"), Bits::FourShift8 => Some(" x256"), _ => None };
+        let scale_suffix = match self.bits { Bits::FourShift4 => Some(" x16"), Bits::FourShift8 => Some(" x256"), Bits::FourShift12 => Some(" x4096"), _ => None };
         let mut spans = vec![Span::raw(binary_string.clone())];
         if let Some(sfx) = scale_suffix { spans.push(Span::styled(sfx, Style::default().fg(Color::DarkGray))); }
         let total_width = spans.iter().map(|s| s.width()).sum::<usize>() as u16;
@@ -497,32 +497,15 @@ enum GuessResult {
 }
 
 #[derive(Clone)]
-pub enum Bits { Four, FourShift4, FourShift8, Eight, Twelve, Sixteen, }
+pub enum Bits { Four, FourShift4, FourShift8, FourShift12, Eight, Twelve, Sixteen, }
 
 impl Bits {
-    pub fn to_int(&self) -> u32 { // width in bits displayed
-        match self { Bits::Four | Bits::FourShift4 | Bits::FourShift8 => 4, Bits::Eight => 8, Bits::Twelve => 12, Bits::Sixteen => 16 }
-    }
-    pub fn scale_factor(&self) -> u32 { // multiplier for numeric value represented by raw bits
-        match self { Bits::Four => 1, Bits::FourShift4 => 16, Bits::FourShift8 => 256, Bits::Eight => 1, Bits::Twelve => 1, Bits::Sixteen => 1 }
-    }
-    pub fn high_score_key(&self) -> u32 { // distinct key for high scores
-        match self { Bits::Four => 4, Bits::FourShift4 => 44, Bits::FourShift8 => 48, Bits::Eight => 8, Bits::Twelve => 12, Bits::Sixteen => 16 }
-    }
+    pub fn to_int(&self) -> u32 { match self { Bits::Four | Bits::FourShift4 | Bits::FourShift8 | Bits::FourShift12 => 4, Bits::Eight => 8, Bits::Twelve => 12, Bits::Sixteen => 16 } }
+    pub fn scale_factor(&self) -> u32 { match self { Bits::Four => 1, Bits::FourShift4 => 16, Bits::FourShift8 => 256, Bits::FourShift12 => 4096, Bits::Eight => 1, Bits::Twelve => 1, Bits::Sixteen => 1 } }
+    pub fn high_score_key(&self) -> u32 { match self { Bits::Four => 4, Bits::FourShift4 => 44, Bits::FourShift8 => 48, Bits::FourShift12 => 412, Bits::Eight => 8, Bits::Twelve => 12, Bits::Sixteen => 16 } }
     pub fn upper_bound(&self) -> u32 { (u32::pow(2, self.to_int()) - 1) * self.scale_factor() }
-    pub fn suggestion_count(&self) -> usize {
-        match self { Bits::Four | Bits::FourShift4 | Bits::FourShift8 => 3, Bits::Eight => 4, Bits::Twelve => 5, Bits::Sixteen => 6 }
-    }
-    pub fn label(&self) -> &'static str {
-        match self {
-            Bits::Four => "4 bits",
-            Bits::FourShift4 => "4 bits*16",
-            Bits::FourShift8 => "4 bits*256",
-            Bits::Eight => "8 bits",
-            Bits::Twelve => "12 bits",
-            Bits::Sixteen => "16 bits",
-        }
-    }
+    pub fn suggestion_count(&self) -> usize { match self { Bits::Four | Bits::FourShift4 | Bits::FourShift8 | Bits::FourShift12 => 3, Bits::Eight => 4, Bits::Twelve => 5, Bits::Sixteen => 6 } }
+    pub fn label(&self) -> &'static str { match self { Bits::Four => "4 bits", Bits::FourShift4 => "4 bits*16", Bits::FourShift8 => "4 bits*256", Bits::FourShift12 => "4 bits*4096", Bits::Eight => "8 bits", Bits::Twelve => "12 bits", Bits::Sixteen => "16 bits" } }
 }
 
 pub struct BinaryNumbersPuzzle {
@@ -556,7 +539,7 @@ impl BinaryNumbersPuzzle {
 
         // Base time by bits + difficulty scaling (shorter as streak increases)
         let base_time = match bits {
-            Bits::Four | Bits::FourShift4 | Bits::FourShift8 => 8.0,
+            Bits::Four | Bits::FourShift4 | Bits::FourShift8 | Bits::FourShift12 => 8.0,
             Bits::Eight => 12.0,
             Bits::Twelve => 16.0,
             Bits::Sixteen => 20.0,
@@ -658,7 +641,7 @@ impl HighScores {
 
     fn save(&self) -> std::io::Result<()> {
         let mut data = String::new();
-        for key in [4u32,44u32,48u32,8u32,12u32,16u32] { // maintain order incl shifted variants
+        for key in [4u32,44u32,48u32,412u32,8u32,12u32,16u32] { // include new shifted variant key
             let val = self.get(key);
             data.push_str(&format!("{}={}\n", key, val));
         }
