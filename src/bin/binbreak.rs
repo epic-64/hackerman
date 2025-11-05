@@ -205,20 +205,18 @@ fn render_big_text(area: Rect, buf: &mut Buffer) {
     "#.nice();
 
     let color_map = HashMap::from([
-        ('█', Color::White),
-        ('R', Color::Red),
-        ('r', Color::LightRed),
-        ('G', Color::LightGreen),
-        ('g', Color::Green),
-        ('B', Color::LightBlue),
-        ('b', Color::Blue),
-        ('Y', Color::LightYellow),
-        //('y', Color::LightYellow),
-        ('P', Color::LightMagenta),
-        ('p', Color::Magenta),
-        ('C', Color::LightCyan),
-        ('W', Color::White),
-        (' ', Color::Reset),
+        ('M', Color::White),
+        ('b', Color::LightYellow),
+        ('d', Color::LightCyan),
+        ('Y', Color::LightGreen),
+        ('8', Color::LightMagenta),
+        ('*', Color::Magenta),
+        ('`', Color::Cyan),
+        ('6', Color::Green),
+        ('9', Color::Red),
+        ('(', Color::Blue),
+        (')', Color::Blue),
+        (' ', Color::Black),
     ]);
 
     let default_color = Color::LightBlue;
