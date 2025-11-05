@@ -8,7 +8,7 @@ use std::time::Instant;
 use std::thread;
 use nice_trim::NiceTrim;
 use ratatui::layout::Flex::Center;
-use hackerman::utils::{AsciiArtWidget, AsciiCells};
+use hackerman::utils::{center, vertically_center, AsciiArtWidget, AsciiCells};
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
@@ -72,26 +72,38 @@ fn handle_start_input(state: &mut StartMenuState, key: KeyEvent) -> Option<AppSt
 }
 
 fn render_start_screen(state: &mut StartMenuState, area: Rect, buf: &mut Buffer) {
-    const ASCII_HEIGHT: u16 = 10;
-    let ascii_area = Rect::new(area.x, area.y, area.width, ASCII_HEIGHT.min(area.height));
-    render_big_text(ascii_area, buf);
+    // Build ASCII art to obtain real dimensions
+    let cells = ascii_art_cells();
+    let ascii_width = cells.get_width();
+    let ascii_height = cells.get_height();
+    let ascii_widget = AsciiArtWidget::new(cells);
 
     let selected = state.selected_index();
-    // Uppercase labels and compute widest
     let upper_labels: Vec<String> = state.items.iter().map(|(l, _)| l.to_uppercase()).collect();
     let max_len = upper_labels.iter().map(|s| s.len() as u16).max().unwrap_or(0);
 
-    // Fixed width: one marker char + space + label
-    let list_width = 2 + max_len; // marker column ("»" or space) + space + text
+    let list_width = 2 + max_len; // marker + space + label
     let list_height = upper_labels.len() as u16;
 
-    // Center area for list
-    let remaining_h = area.height.saturating_sub(ASCII_HEIGHT);
-    let y = area.y + ASCII_HEIGHT + (remaining_h.saturating_sub(list_height)) / 2;
-    let x = area.x + (area.width.saturating_sub(list_width)) / 2;
-    let list_area = Rect::new(x, y, list_width.min(area.width), list_height.min(remaining_h));
+    // Vertical spacing between ASCII art and list
+    let spacing: u16 = 3;
+    let total_height = ascii_height + spacing + list_height;
 
-    // Palette for a bit of flair
+    // Center vertically & horizontally
+    let start_y = area.y + area.height.saturating_sub(total_height) / 2;
+    let ascii_x = area.x + area.width.saturating_sub(ascii_width) / 2;
+    let list_x = area.x + area.width.saturating_sub(list_width) / 2;
+    let ascii_y = start_y;
+    let list_y = ascii_y + ascii_height + spacing;
+
+    // Define rects (clamp to area)
+    let ascii_area = Rect::new(ascii_x, ascii_y, ascii_width.min(area.width), ascii_height.min(area.height));
+    let list_area = Rect::new(list_x, list_y, list_width.min(area.width), list_height.min(area.height.saturating_sub(list_y - area.y)));
+
+    // Render ASCII art
+    ascii_widget.render(ascii_area, buf);
+
+    // Palette for menu flair
     let palette = [
         Color::Magenta,
         Color::LightMagenta,
@@ -181,7 +193,7 @@ fn run_app(terminal: &mut ratatui::DefaultTerminal) -> color_eyre::Result<()> {
     Ok(())
 }
 
-fn render_big_text(area: Rect, buf: &mut Buffer) {
+fn ascii_art_cells() -> AsciiCells {
     let art = r#"
  ,,        ,,              ,,
 *MM        db             *MM                                `7MM
@@ -220,7 +232,11 @@ fn render_big_text(area: Rect, buf: &mut Buffer) {
     ]);
 
     let default_color = Color::LightBlue;
-    let cells = AsciiCells::from(art.to_string(), colors.to_string(), &color_map, default_color);
+    AsciiCells::from(art.to_string(), colors.to_string(), &color_map, default_color)
+}
+
+fn render_big_text(area: Rect, buf: &mut Buffer) {
+    let cells = ascii_art_cells();
     let width = cells.get_width();
     let ascii_widget = AsciiArtWidget::new(cells);
 
