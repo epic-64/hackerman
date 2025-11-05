@@ -26,14 +26,15 @@ struct StartMenuState {
 impl StartMenuState {
     fn new() -> Self {
         let items = vec![
-            ("4 bits".to_string(), Bits::Four),
-            ("4 bits x16".to_string(), Bits::FourShift4),
-            ("4 bits x256".to_string(), Bits::FourShift8),
-            ("8 bits".to_string(), Bits::Eight),
-            ("12 bits".to_string(), Bits::Twelve),
-            ("16 bits".to_string(), Bits::Sixteen),
+            ("easy       (4 bits)".to_string(), Bits::Four),
+            ("easy+16    (4 bits*16)".to_string(), Bits::FourShift4),
+            ("easy+256   (4 bits*256)".to_string(), Bits::FourShift8),
+            ("easy+4096  (4 bits*4096)".to_string(), Bits::FourShift12),
+            ("normal     (8 bits)".to_string(), Bits::Eight),
+            ("master     (12 bits)".to_string(), Bits::Twelve),
+            ("insane     (16 bits)".to_string(), Bits::Sixteen),
         ];
-        Self { items, list_state: ListState::default().with_selected(Some(3)) } // default to normal (8 bits)
+        Self { items, list_state: ListState::default().with_selected(Some(4)) } // default to normal (8 bits)
     }
     fn selected_index(&self) -> usize {
         self.list_state.selected().unwrap_or(0)
