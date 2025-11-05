@@ -73,7 +73,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
                 Span::styled(format!("Max: {}  ", stats.max_streak), Style::default().fg(Color::Blue)),
                 Span::styled(format!("Rounds: {}  ", stats.rounds), Style::default().fg(Color::Magenta)),
                 Span::styled(format!("Lives: {}  ", stats.hearts), Style::default().fg(Color::Red)),
-                Span::styled(format!("Bits: {}", stats.bits.to_int()), Style::default().fg(Color::Yellow)),
+                Span::styled(format!("Mode: {}", stats.bits.label()), Style::default().fg(Color::Yellow)),
             ]);
             Paragraph::new(info_line.clone())
                 .alignment(Center)
@@ -280,7 +280,7 @@ impl BinaryNumbersGame {
     pub fn new(bits: Bits) -> Self { Self::new_with_max_lives(bits, 3) }
     pub fn new_with_max_lives(bits: Bits, max_lives: u32) -> Self {
         let hs = HighScores::load();
-        let starting_prev = hs.get(bits.to_int());
+        let starting_prev = hs.get(bits.high_score_key());
         Self {
             bits: bits.clone(),
             puzzle: Self::init_puzzle(bits.clone(), 0),
@@ -333,11 +333,11 @@ impl BinaryNumbersGame {
                 }
             }
             // high score update
-            let bits_int = self.bits.to_int();
-            let prev = self.high_scores.get(bits_int);
+            let bits_key = self.bits.high_score_key();
+            let prev = self.high_scores.get(bits_key);
             if self.score > prev {
                 if !self.new_high_score_reached { self.prev_high_score_for_display = prev; }
-                self.high_scores.update(bits_int, self.score);
+                self.high_scores.update(bits_key, self.score);
                 self.new_high_score_reached = true;
                 let _ = self.high_scores.save();
             }
@@ -375,7 +375,7 @@ impl BinaryNumbersGame {
         self.lives = self.max_lives.min(3);
         self.game_state = GameState::Active;
         self.max_streak = 0;
-        self.prev_high_score_for_display = self.high_scores.get(self.bits.to_int());
+        self.prev_high_score_for_display = self.high_scores.get(self.bits.high_score_key());
         self.new_high_score_reached = false;
         self.puzzle = Self::init_puzzle(self.bits.clone(), 0);
         self.puzzle_resolved = false;
@@ -478,35 +478,38 @@ enum GuessResult {
 }
 
 #[derive(Clone)]
-pub enum Bits { Four, Eight, Twelve, Sixteen, }
+pub enum Bits { Four, FourShift4, FourShift8, Eight, Twelve, Sixteen, }
 
 impl Bits {
-    pub fn to_int(&self) -> u32 {
-        match self {
-            Bits::Four => 4,
-            Bits::Eight => 8,
-            Bits::Twelve => 12,
-            Bits::Sixteen => 16,
-        }
+    pub fn to_int(&self) -> u32 { // width in bits displayed
+        match self { Bits::Four | Bits::FourShift4 | Bits::FourShift8 => 4, Bits::Eight => 8, Bits::Twelve => 12, Bits::Sixteen => 16 }
     }
-
-    pub fn upper_bound(&self) -> u32 {
-        u32::pow(2, self.to_int()) - 1
+    pub fn scale_factor(&self) -> u32 { // multiplier for numeric value represented by raw bits
+        match self { Bits::Four => 1, Bits::FourShift4 => 16, Bits::FourShift8 => 256, Bits::Eight => 1, Bits::Twelve => 1, Bits::Sixteen => 1 }
     }
-
+    pub fn high_score_key(&self) -> u32 { // distinct key for high scores
+        match self { Bits::Four => 4, Bits::FourShift4 => 44, Bits::FourShift8 => 48, Bits::Eight => 8, Bits::Twelve => 12, Bits::Sixteen => 16 }
+    }
+    pub fn upper_bound(&self) -> u32 { (u32::pow(2, self.to_int()) - 1) * self.scale_factor() }
     pub fn suggestion_count(&self) -> usize {
+        match self { Bits::Four | Bits::FourShift4 | Bits::FourShift8 => 3, Bits::Eight => 4, Bits::Twelve => 5, Bits::Sixteen => 6 }
+    }
+    pub fn label(&self) -> &'static str {
         match self {
-            Bits::Four => 3,
-            Bits::Eight => 4,
-            Bits::Twelve => 5,
-            Bits::Sixteen => 6,
+            Bits::Four => "4 bits",
+            Bits::FourShift4 => "4 bits*16",
+            Bits::FourShift8 => "4 bits*256",
+            Bits::Eight => "8 bits",
+            Bits::Twelve => "12 bits",
+            Bits::Sixteen => "16 bits",
         }
     }
 }
 
 pub struct BinaryNumbersPuzzle {
     bits: Bits,
-    current_number: u32,
+    current_number: u32, // scaled value used for suggestions matching
+    raw_current_number: u32, // raw bit value (unscaled) for display
     suggestions: Vec<u32>,
     selected_suggestion: Option<u32>,
     time_total: f64,
@@ -521,19 +524,20 @@ impl BinaryNumbersPuzzle {
         let mut rng = rand::rng();
 
         let mut suggestions = Vec::new();
+        let scale = bits.scale_factor();
         while suggestions.len() < bits.suggestion_count() {
-            let num = rng.random_range(0..=bits.upper_bound());
-            if !suggestions.contains(&num) {
-                suggestions.push(num);
-            }
+            let raw = rng.random_range(0..=u32::pow(2, bits.to_int()) - 1);
+            let num = raw * scale;
+            if !suggestions.contains(&num) { suggestions.push(num); }
         }
 
-        let current_number = suggestions[0];
+        let current_number = suggestions[0]; // scaled value
+        let raw_current_number = current_number / scale; // back-calculate raw bits
         suggestions.shuffle(&mut rng);
 
         // Base time by bits + difficulty scaling (shorter as streak increases)
         let base_time = match bits {
-            Bits::Four => 8.0,
+            Bits::Four | Bits::FourShift4 | Bits::FourShift8 => 8.0,
             Bits::Eight => 12.0,
             Bits::Twelve => 16.0,
             Bits::Sixteen => 20.0,
@@ -548,6 +552,7 @@ impl BinaryNumbersPuzzle {
         Self {
             bits,
             current_number,
+            raw_current_number,
             suggestions,
             time_total,
             time_left,
@@ -563,7 +568,7 @@ impl BinaryNumbersPuzzle {
 
     pub fn current_to_binary_string(&self) -> String {
         let width = self.bits.to_int() as usize;
-        let raw = format!("{:0width$b}", self.current_number, width = width);
+        let raw = format!("{:0width$b}", self.raw_current_number, width = width);
         raw.chars()
             .collect::<Vec<_>>()
             .chunks(4)
@@ -599,8 +604,7 @@ fn render_ascii_gauge(area: Rect, buf: &mut Buffer, ratio: f64, color: Color) {
     if area.height == 0 { return; }
     for x in 0..area.width {
         let filled = x < fill_width;
-        let symbol = if filled { ":\
-        " } else { " " };
+        let symbol = if filled { "=" } else { " " };
         let style = if filled { Style::default().fg(color) } else { Style::default().fg(Color::DarkGray) };
         let cell = buf.get_mut(area.x + x, area.y);
         cell.set_symbol(symbol);
@@ -635,9 +639,9 @@ impl HighScores {
 
     fn save(&self) -> std::io::Result<()> {
         let mut data = String::new();
-        for bits in [4u32,8u32,12u32,16u32] { // maintain order
-            let val = self.get(bits);
-            data.push_str(&format!("{}={}\n", bits, val));
+        for key in [4u32,44u32,48u32,8u32,12u32,16u32] { // maintain order incl shifted variants
+            let val = self.get(key);
+            data.push_str(&format!("{}={}\n", key, val));
         }
         let mut file = File::create(Self::FILE)?;
         file.write_all(data.as_bytes())
@@ -653,4 +657,4 @@ impl HighScores {
 }
 
 // NEW: public helper for external modules (e.g., start screen) to read current high score for a bits mode
-pub fn get_high_score(bits: Bits) -> u32 { HighScores::load().get(bits.to_int()) }
+pub fn get_high_score(bits: Bits) -> u32 { HighScores::load().get(bits.high_score_key()) }
