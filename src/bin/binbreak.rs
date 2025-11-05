@@ -66,9 +66,6 @@ fn handle_start_input(state: &mut StartMenuState, key: KeyEvent) -> Option<AppSt
             return Some(AppState::Playing(BinaryNumbersGame::new(bits)));
         }
         KeyCode::Esc => return Some(AppState::Exit),
-        KeyCode::Char('c') | KeyCode::Char('C') if key.modifiers == KeyModifiers::CONTROL => {
-            return Some(AppState::Exit);
-        }
         _ => {}
     }
     None
@@ -119,6 +116,10 @@ fn render_start_screen(state: &mut StartMenuState, area: Rect, buf: &mut Buffer)
     ratatui::widgets::StatefulWidget::render(list, list_area, buf, &mut state.list_state);
 }
 
+fn handle_keypress(key: KeyEvent) {
+
+}
+
 fn run_app(terminal: &mut ratatui::DefaultTerminal) -> color_eyre::Result<()> {
     let mut app_state = AppState::Start(StartMenuState::new());
     let mut last_frame_time = Instant::now();
@@ -131,9 +132,7 @@ fn run_app(terminal: &mut ratatui::DefaultTerminal) -> color_eyre::Result<()> {
 
         terminal.draw(|f| match &mut app_state {
             AppState::Start(menu) => render_start_screen(menu, f.area(), f.buffer_mut()),
-            AppState::Playing(game) => {
-                f.render_widget(&mut *game, f.area());
-            }
+            AppState::Playing(game) => f.render_widget(&mut *game, f.area()),
             AppState::Exit => {}
         })?;
 
@@ -141,7 +140,6 @@ fn run_app(terminal: &mut ratatui::DefaultTerminal) -> color_eyre::Result<()> {
         if let AppState::Playing(game) = &mut app_state {
             game.run(dt.as_secs_f64());
             if game.is_exit_intended() {
-                // Return to start screen instead of exiting entirely
                 app_state = AppState::Start(StartMenuState::new());
                 continue;
             }
@@ -152,16 +150,24 @@ fn run_app(terminal: &mut ratatui::DefaultTerminal) -> color_eyre::Result<()> {
         if event::poll(poll_timeout)? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
-                    app_state = match app_state {
-                        AppState::Start(mut menu) => {
-                            handle_start_input(&mut menu, key).unwrap_or(AppState::Start(menu))
+                    match key.code {
+                        // global exit via Ctrl+C
+                        KeyCode::Char('c') | KeyCode::Char('C') if key.modifiers == KeyModifiers::CONTROL => {
+                            app_state = AppState::Exit;
                         }
-                        AppState::Playing(mut game) => {
-                            handle_game_key(&mut game, key);
-                            AppState::Playing(game)
+
+                        // state-specific input handling
+                        _ => app_state = match app_state {
+                            AppState::Start(mut menu) => {
+                                handle_start_input(&mut menu, key).unwrap_or(AppState::Start(menu))
+                            }
+                            AppState::Playing(mut game) => {
+                                game.handle_game_input(key);
+                                AppState::Playing(game)
+                            }
+                            AppState::Exit => AppState::Exit,
                         }
-                        AppState::Exit => AppState::Exit,
-                    };
+                    }
                 }
             }
         }
@@ -173,15 +179,6 @@ fn run_app(terminal: &mut ratatui::DefaultTerminal) -> color_eyre::Result<()> {
         }
     }
     Ok(())
-}
-
-fn handle_game_key(game: &mut BinaryNumbersGame, key: KeyEvent) {
-    match key.code {
-        KeyCode::Char('c') | KeyCode::Char('C') if key.modifiers == KeyModifiers::CONTROL => {
-            game.handle_game_input(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
-        }
-        _ => game.handle_game_input(key),
-    }
 }
 
 fn render_big_text(area: Rect, buf: &mut Buffer) {
