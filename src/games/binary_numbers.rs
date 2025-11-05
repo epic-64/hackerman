@@ -7,6 +7,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Flex, Layout, Rect};
 use ratatui::prelude::Alignment::Center;
 use ratatui::prelude::{Color, Line, Style, Stylize, Widget};
+use ratatui::style::Modifier; // added for bold high score marker
 use ratatui::text::Span;
 use ratatui::widgets::BorderType::Double;
 use ratatui::widgets::{Block, BorderType, Paragraph};
@@ -49,7 +50,7 @@ impl WidgetRef for BinaryNumbersPuzzle {
 
         let [stats_area, current_number_area, suggestions_area, progress_bar_area, result_area] =
             Layout::vertical([
-                Constraint::Length(3),  // stats row
+                Constraint::Length(4),  // stats row expanded for two lines
                 Constraint::Length(5),  // current number area
                 Constraint::Length(3),  // suggestion area
                 Constraint::Length(4),  // status + time area
@@ -67,17 +68,31 @@ impl WidgetRef for BinaryNumbersPuzzle {
 
         // Use snapshot if present
         if let Some(stats) = &self.stats_snapshot {
-            let info_line = Line::from(vec![
+            let high_label = if stats.new_high_score {
+                let style = Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD);
+                Span::styled(format!("Hi-Score: {}*  ", stats.score), style)
+            } else {
+                let style = Style::default().fg(Color::DarkGray);
+                Span::styled(format!("Hi-Score: {}  ", stats.prev_high_score), style)
+            };
+
+            let line1 = Line::from(vec![
+                Span::styled(format!("Mode: {}  ", stats.bits.label()), Style::default().fg(Color::Yellow)),
+                high_label,
+            ]);
+
+            let line2 = Line::from(vec![
                 Span::styled(format!("Score: {}  ", stats.score), Style::default().fg(Color::Green)),
                 Span::styled(format!("Streak: {}  ", stats.streak), Style::default().fg(Color::Cyan)),
                 Span::styled(format!("Max: {}  ", stats.max_streak), Style::default().fg(Color::Blue)),
                 Span::styled(format!("Rounds: {}  ", stats.rounds), Style::default().fg(Color::Magenta)),
                 Span::styled(format!("Lives: {}  ", stats.hearts), Style::default().fg(Color::Red)),
-                Span::styled(format!("Mode: {}", stats.bits.label()), Style::default().fg(Color::Yellow)),
             ]);
-            Paragraph::new(info_line.clone())
+
+            let widest = line1.width().max(line2.width()) as u16;
+            Paragraph::new(vec![line1, line2])
                 .alignment(Center)
-                .render(center(stats_area, Constraint::Length(info_line.width() as u16)), buf);
+                .render(center(stats_area, Constraint::Length(widest)), buf);
 
             // If game over, render game over block occupying the remaining area and return early
             if stats.game_state == GameState::GameOver {
@@ -119,8 +134,12 @@ impl WidgetRef for BinaryNumbersPuzzle {
             .render(inner, buf);
 
         let binary_string = self.current_to_binary_string();
-        let lines: Vec<Line> = vec![Line::raw(binary_string.clone())];
-        Paragraph::new(lines).alignment(Center).render(center(inner, Constraint::Length(binary_string.len() as u16)), buf);
+        let scale_suffix = match self.bits { Bits::FourShift4 => Some(" x16"), Bits::FourShift8 => Some(" x256"), _ => None };
+        let mut spans = vec![Span::raw(binary_string.clone())];
+        if let Some(sfx) = scale_suffix { spans.push(Span::styled(sfx, Style::default().fg(Color::DarkGray))); }
+        let total_width = spans.iter().map(|s| s.width()).sum::<usize>() as u16;
+        let lines: Vec<Line> = vec![Line::from(spans)];
+        Paragraph::new(lines).alignment(Center).render(center(inner, Constraint::Length(total_width)), buf);
 
         let suggestions = self.suggestions();
         let suggestions_layout = Layout::default()
