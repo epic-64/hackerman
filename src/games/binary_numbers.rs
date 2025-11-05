@@ -643,9 +643,13 @@ impl HighScores {
         file.write_all(data.as_bytes())
     }
 
-    fn get(&self, bits: u32) -> u32 { *self.scores.get(&bits).unwrap_or(&0) }
+    fn get(&self, bits: u32) -> u32 {
+        *self.scores.get(&bits).unwrap_or(&0)
+    }
 
-    fn update(&mut self, bits: u32, score: u32) { self.scores.insert(bits, score); }
+    fn update(&mut self, bits: u32, score: u32) {
+        self.scores.insert(bits, score);
+    }
 }
 
 // NEW: public helper for external modules (e.g., start screen) to read current high score for a bits mode
