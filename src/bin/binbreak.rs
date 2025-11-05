@@ -1,14 +1,13 @@
-use std::collections::HashMap;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use hackerman::games::binary_numbers::{BinaryNumbersGame, Bits};
 use hackerman::games::main_screen_widget::MainScreenWidget;
+use hackerman::utils::{AsciiArtWidget, AsciiCells};
+use nice_trim::NiceTrim;
 use ratatui::prelude::*;
 use ratatui::widgets::{List, ListItem, ListState};
-use std::time::Instant;
+use std::collections::HashMap;
 use std::thread;
-use nice_trim::NiceTrim;
-use ratatui::layout::Flex::Center;
-use hackerman::utils::{center, vertically_center, AsciiArtWidget, AsciiCells};
+use std::time::Instant;
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
@@ -29,8 +28,8 @@ impl StartMenuState {
         let items = vec![
             ("4 bits".to_string(), Bits::Four),
             ("4 bits x16".to_string(), Bits::FourShift4),
-            ("8 bits".to_string(), Bits::Eight),
             ("4 bits x256".to_string(), Bits::FourShift8),
+            ("8 bits".to_string(), Bits::Eight),
             ("12 bits".to_string(), Bits::Twelve),
             ("16 bits".to_string(), Bits::Sixteen),
         ];
@@ -104,11 +103,12 @@ fn render_start_screen(state: &mut StartMenuState, area: Rect, buf: &mut Buffer)
 
     // Palette for menu flair
     let palette = [
-        Color::Magenta,
-        Color::LightMagenta,
-        Color::LightBlue,
+        Color::LightGreen,
         Color::LightCyan,
-        Color::Yellow,
+        Color::LightBlue,
+        Color::LightMagenta,
+        Color::LightYellow,
+        Color::LightRed,
     ];
 
     let items: Vec<ListItem> = upper_labels
@@ -125,10 +125,6 @@ fn render_start_screen(state: &mut StartMenuState, area: Rect, buf: &mut Buffer)
 
     let list = List::new(items);
     ratatui::widgets::StatefulWidget::render(list, list_area, buf, &mut state.list_state);
-}
-
-fn handle_keypress(key: KeyEvent) {
-
 }
 
 fn run_app(terminal: &mut ratatui::DefaultTerminal) -> color_eyre::Result<()> {
@@ -232,13 +228,4 @@ fn ascii_art_cells() -> AsciiCells {
 
     let default_color = Color::LightBlue;
     AsciiCells::from(art.to_string(), colors.to_string(), &color_map, default_color)
-}
-
-fn render_big_text(area: Rect, buf: &mut Buffer) {
-    let cells = ascii_art_cells();
-    let width = cells.get_width();
-    let ascii_widget = AsciiArtWidget::new(cells);
-
-    let [centered] = Layout::horizontal([Constraint::Length(width)]).flex(Center).areas(area);
-    ascii_widget.render(centered, buf);
 }
