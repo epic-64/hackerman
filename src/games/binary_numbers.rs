@@ -9,7 +9,7 @@ use ratatui::prelude::Alignment::Center;
 use ratatui::prelude::{Color, Line, Style, Stylize, Widget};
 use ratatui::text::Span;
 use ratatui::widgets::BorderType::Double;
-use ratatui::widgets::{Block, BorderType, Gauge, Paragraph};
+use ratatui::widgets::{Block, BorderType, Paragraph};
 use std::collections::HashMap;
 use std::fs::{File};
 use std::io::{Read, Write};
@@ -209,14 +209,9 @@ impl WidgetRef for BinaryNumbersPuzzle {
         let [gauge_line, time_line] = Layout::vertical([
             Constraint::Length(1), // gauge occupies one row
             Constraint::Length(1), // time text occupies one row
-        ])
-        .areas(inner_time);
+        ]).areas(inner_time);
 
-        Gauge::default()
-            .gauge_style(Style::default().fg(gauge_color))
-            .ratio(ratio)
-            .label("") // empty label to suppress default percent display
-            .render(gauge_line, buf);
+        render_ascii_gauge(gauge_line, buf, ratio, gauge_color);
 
         Paragraph::new(Line::from(Span::styled(
             format!("{:.2} seconds left", self.time_left),
@@ -594,6 +589,22 @@ impl BinaryNumbersPuzzle {
 impl Widget for &mut BinaryNumbersGame {
     fn render(self, area: Rect, buf: &mut Buffer) {
         self.render_ref(area, buf);
+    }
+}
+
+// Simple ASCII gauge renderer to avoid variable glyph heights from Unicode block elements
+fn render_ascii_gauge(area: Rect, buf: &mut Buffer, ratio: f64, color: Color) {
+    let clamped = if ratio < 0.0 { 0.0 } else if ratio > 1.0 { 1.0 } else { ratio };
+    let fill_width = ((area.width as f64) * clamped).round().min(area.width as f64) as u16;
+    if area.height == 0 { return; }
+    for x in 0..area.width {
+        let filled = x < fill_width;
+        let symbol = if filled { ":\
+        " } else { " " };
+        let style = if filled { Style::default().fg(color) } else { Style::default().fg(Color::DarkGray) };
+        let cell = buf.get_mut(area.x + x, area.y);
+        cell.set_symbol(symbol);
+        cell.set_style(style);
     }
 }
 
